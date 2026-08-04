@@ -81,4 +81,4 @@
 ## Current work
 
 - [x] Finish and verify editable network/device/rack/IP workflows.
-- [ ] Commit the editable-inventory slice.
+- [x] Commit the editable-inventory slice.
