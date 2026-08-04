@@ -19,9 +19,27 @@ function render() {
 async function refresh() { const response = await fetch('/api/summary'); snapshot = await response.json(); render(); }
 async function scan(networkId = $('#scan-network').value || snapshot.networks[0]?.id) { const network = snapshot.networks.find((item) => item.id === networkId); if (!network) return toast('Create a network before scanning.'); toast(`Scanning ${network.name}…`); const response = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ networkId: network.id }) }); if (!response.ok) return toast('Scan failed. Check the server logs.'); await refresh(); toast('Scan complete. Review the observations.'); }
 async function confirmDiscovery(id) { const item = snapshot.discoveries.find((entry) => entry.id === id); const response = await fetch(`/api/discoveries/${id}/confirm`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: item.hostname || item.ip }) }); if (response.ok) { await refresh(); toast('Added to your inventory.'); } }
-async function addDevice() { const name = window.prompt('Device name'); if (!name?.trim()) return; const response = await fetch('/api/devices', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name }) }); if (response.ok) { await refresh(); toast(`${name} added to inventory.`); } }
+async function addDevice() {
+  const name = window.prompt('Device name');
+  if (!name?.trim()) return;
+  const role = window.prompt('Role (router, server, switch…)') || 'Unassigned';
+  const rack = snapshot.racks[0];
+  const rackUnit = window.prompt(`Rack unit in ${rack?.name || 'no rack'} (leave blank for standalone)`);
+  const ip = window.prompt('IP address (leave blank to assign later)');
+  const response = await fetch('/api/devices', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, role, rackId: rackUnit && rack ? rack.id : null, rackUnit, ip, networkId: ip ? snapshot.networks[0]?.id : null }) });
+  if (response.ok) { await refresh(); toast(`${name} added to inventory.`); } else { const result = await response.json(); toast(result.error || 'Could not add device.'); }
+}
+async function addNetwork() {
+  const name = window.prompt('Network name');
+  if (!name?.trim()) return;
+  const cidr = window.prompt('CIDR (for example 192.168.10.0/24)');
+  if (!cidr?.trim()) return;
+  const vlan = window.prompt('VLAN number (optional)');
+  const response = await fetch('/api/networks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, cidr, vlan }) });
+  if (response.ok) { await refresh(); toast(`${name} added to IPAM.`); } else { const result = await response.json(); toast(result.error || 'Could not add network.'); }
+}
 function showView(view) { document.querySelectorAll('.view').forEach((node) => node.classList.remove('active-view')); $(`#view-${view}`).classList.add('active-view'); document.querySelectorAll('.nav-item').forEach((node) => node.classList.toggle('active', node.dataset.view === view)); const label = view === 'racks' ? 'RACKS & MAP' : view.toUpperCase(); $('#page-label').textContent = label; $('#page-title').innerHTML = view === 'overview' ? 'Good evening, Kallum <span>✦</span>' : `${label[0] + label.slice(1).toLowerCase()} <span>✦</span>`; }
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
 document.querySelectorAll('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
-$('#add-device').addEventListener('click', addDevice); $('#add-device-rack').addEventListener('click', addDevice); $('#scan-quick').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-ipam').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-discovery').addEventListener('click', () => scan());
+$('#add-device').addEventListener('click', addDevice); $('#add-device-rack').addEventListener('click', addDevice); $('#add-network').addEventListener('click', addNetwork); $('#scan-quick').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-ipam').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-discovery').addEventListener('click', () => scan());
 refresh().catch(() => toast('Lantern API is unavailable. Start the server first.'));

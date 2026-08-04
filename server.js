@@ -6,6 +6,7 @@ import os from 'node:os';
 import net from 'node:net';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
+import { validateDeviceInput, rackPlacementAvailable, buildAddress } from './src/inventory.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -94,11 +95,35 @@ async function api(request, response, url) {
     }
     return json(response, 202, { ok: true });
   }
+  if (request.method === 'POST' && url.pathname === '/api/networks') {
+    const input = await body(request);
+    const name = String(input.name || '').trim();
+    if (!name) return json(response, 400, { error: 'Network name is required' });
+    let details;
+    try { details = cidrInfo(input.cidr); } catch (error) { return json(response, 400, { error: error.message }); }
+    if (state.networks.some((network) => network.cidr === input.cidr)) return json(response, 409, { error: 'That network already exists' });
+    const network = { id: createId('net'), name, cidr: input.cidr, vlan: Number(input.vlan) || null, siteId: state.sites[0]?.id || null };
+    state.networks.push(network);
+    addChange(state, 'network', `Added ${network.name} (${details.network}/${details.prefix})`);
+    await saveState(dataPath, state);
+    return json(response, 201, network);
+  }
   if (request.method === 'POST' && url.pathname === '/api/devices') {
     const input = await body(request);
-    if (!input.name?.trim()) return json(response, 400, { error: 'Device name is required' });
-    const device = { id: createId('device'), name: input.name.trim(), role: input.role || 'Unassigned', rackId: input.rackId || null, rackUnit: Number(input.rackUnit) || null, height: Number(input.height) || 1, status: 'active' };
+    let details;
+    try { details = validateDeviceInput(input); } catch (error) { return json(response, 400, { error: error.message }); }
+    const rack = input.rackId ? state.racks.find((item) => item.id === input.rackId) : null;
+    const rackUnit = Number(input.rackUnit) || null;
+    if (input.rackId && !rack) return json(response, 404, { error: 'Rack not found' });
+    if (rack && rackUnit && (rackUnit < 1 || rackUnit + details.height - 1 > rack.height)) return json(response, 400, { error: 'Device does not fit in that rack position' });
+    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height)) return json(response, 409, { error: 'Those rack units are already occupied' });
+    const network = input.networkId ? state.networks.find((item) => item.id === input.networkId) : null;
+    if (input.networkId && !network) return json(response, 404, { error: 'Network not found' });
+    if (input.ip && (!network || !isIpInCidr(input.ip, network.cidr))) return json(response, 400, { error: 'IP address is outside the selected network' });
+    if (input.ip && state.addresses.some((address) => address.ip === input.ip)) return json(response, 409, { error: 'That IP address is already allocated' });
+    const device = { id: createId('device'), name: details.name, role: input.role || 'Unassigned', rackId: input.rackId || null, rackUnit, height: details.height, status: 'active' };
     state.devices.push(device);
+    if (input.ip) state.addresses.push(buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, deviceId: device.id }));
     addChange(state, 'device', `Added ${device.name}`);
     await saveState(dataPath, state);
     return json(response, 201, device);
