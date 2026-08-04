@@ -7,6 +7,8 @@
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/search.css" />
     <link rel="stylesheet" href="/theme.css" />
+    <link rel="stylesheet" href="/layout.css" />
+    <link rel="stylesheet" href="/rack.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -15,6 +17,7 @@
         <p class="eyebrow">HOME LAB / OVERVIEW</p>
         <nav>
           <button class="nav-item active" data-view="overview"><span>◒</span> Overview</button>
+          <button class="nav-item" data-view="sites"><span>⌂</span> Sites</button>
           <button class="nav-item" data-view="ipam"><span>⌁</span> IPAM</button>
           <button class="nav-item" data-view="racks"><span>▦</span> Racks & map</button>
           <button class="nav-item" data-view="discovery"><span>◎</span> Discovery <b id="nav-discovery-count">0</b></button>
@@ -41,7 +44,9 @@
           <section class="panel rack-preview"><div class="panel-heading"><div><p class="eyebrow">PHYSICAL LAYOUT</p><h3>Rack overview</h3></div><button class="text-button" data-view-link="racks">Open 2D view →</button></div><div id="rack-mini"></div></section>
         </section>
 
-        <section id="view-ipam" class="view"><div class="section-heading"><div><p class="eyebrow accent">NETWORKS & ADDRESSES</p><h2>IPAM</h2><p class="muted">Keep every address accounted for, without the spreadsheet archaeology.</p></div><div class="scan-controls"><button class="button secondary" id="add-network">+ Add network</button><button class="button secondary" id="scan-ipam">◎ Scan a network</button></div></div><div class="panel table-panel"><table><thead><tr><th>Network</th><th>VLAN</th><th>Site</th><th>Allocated</th><th>Capacity</th><th>Status</th></tr></thead><tbody id="ipam-table"></tbody></table></div></section>
+        <section id="view-sites" class="view"><div class="section-heading"><div><p class="eyebrow accent">HOMELAB LOCATIONS</p><h2>Sites</h2><p class="muted">Keep separate homes, offices, and cloud locations visible in one inventory.</p></div><button class="button primary" id="add-site">+ Add site</button></div><div id="sites-grid" class="sites-grid"></div></section>
+
+        <section id="view-ipam" class="view"><div class="section-heading"><div><p class="eyebrow accent">NETWORKS & ADDRESSES</p><h2>IPAM</h2><p class="muted">Keep every address accounted for, without the spreadsheet archaeology.</p></div><div class="scan-controls"><button class="button secondary" id="add-network">+ Add network</button><button class="button secondary" id="scan-ipam">◎ Scan a network</button></div></div><div class="panel table-panel"><table><thead><tr><th>Network</th><th>VLAN</th><th>Site</th><th>Allocated</th><th>Capacity</th><th>Status</th></tr></thead><tbody id="ipam-table"></tbody></table></div><section id="ip-detail" class="panel ip-detail" hidden></section></section>
 
         <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><div class="scan-controls"><button class="button secondary" id="add-rack">+ Add rack</button><button class="button primary" id="add-device-rack">+ Add device</button></div></div><div id="rack-grid" class="rack-grid"></div></section>
 

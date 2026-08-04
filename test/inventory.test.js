@@ -16,7 +16,7 @@ test('rejects overlapping devices in rack units', () => {
 
 test('builds a canonical IP address record', () => {
   assert.deepEqual(buildAddress({ networkId: 'net_1', ip: '192.168.1.5', hostname: 'router', deviceId: 'device_1' }), {
-    networkId: 'net_1', ip: '192.168.1.5', hostname: 'router', deviceId: 'device_1', source: 'manual',
+    networkId: 'net_1', ip: '192.168.1.5', hostname: 'router', description: '', deviceId: 'device_1', source: 'manual',
   });
 });
 

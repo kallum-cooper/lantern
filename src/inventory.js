@@ -23,6 +23,7 @@ export function buildAddress(input = {}) {
     networkId: input.networkId,
     ip: String(input.ip || '').trim(),
     hostname: String(input.hostname || '').trim(),
+    description: String(input.description || '').trim(),
     deviceId: input.deviceId || null,
     source: input.source || 'manual',
   };

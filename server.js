@@ -4,10 +4,12 @@ import { fileURLToPath } from 'node:url';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import net from 'node:net';
+import dns from 'node:dns/promises';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
+import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -29,7 +31,7 @@ async function body(request) {
 function summary() {
   return {
     site: state.sites[0],
-    sites: state.sites,
+    sites: state.sites.map((site) => ({ ...site, rackCount: state.racks.filter((rack) => rack.siteId === site.id).length, deviceCount: state.devices.filter((device) => state.racks.some((rack) => rack.id === device.rackId && rack.siteId === site.id)).length, networkCount: state.networks.filter((network) => network.siteId === site.id).length })),
     counts: {
       devices: state.devices.length,
       addresses: state.addresses.length,
@@ -42,8 +44,9 @@ function summary() {
       addressCount: state.addresses.filter((address) => address.networkId === network.id).length,
       capacity: cidrInfo(network.cidr).usable,
     })),
-    racks: state.racks.map((rack) => ({ ...rack, devices: state.devices.filter((device) => device.rackId === rack.id) })),
-    devices: state.devices,
+    racks: state.racks.map((rack) => ({ ...rack, devices: state.devices.filter((device) => device.rackId === rack.id).map((device) => ({ ...device, address: state.addresses.find((address) => address.deviceId === device.id) || null })) })),
+    devices: state.devices.map((device) => ({ ...device, address: state.addresses.find((address) => address.deviceId === device.id) || null })),
+    addresses: state.addresses,
     discoveries: state.discoveries,
     changes: state.changes,
   };
@@ -57,6 +60,7 @@ async function scanNetwork(network) {
   const addresses = usableIps(network.cidr);
   const candidates = addresses.filter((address) => isIpInCidr(address, network.cidr));
   const commonPorts = [22, 80, 443, 445, 3389, 8080];
+  const reverseHostname = async (address) => { try { return (await dns.reverse(address))[0] || ''; } catch { return ''; } };
   const probe = (address, port) => new Promise((resolve) => {
     const socket = net.createConnection({ host: address, port });
     let settled = false;
@@ -72,12 +76,17 @@ async function scanNetwork(network) {
       for (const port of commonPorts) if (await probe(address, port)) openPorts.push(port);
       return openPorts.length || localAddresses.includes(address) ? { address, openPorts } : null;
     }));
-    for (const result of found.filter(Boolean)) discoveries.push({
-      id: createId('discovery'), networkId: network.id, ip: result.address,
-      hostname: localAddresses.includes(result.address) ? os.hostname() : '',
-      vendor: localAddresses.includes(result.address) ? 'Local interface' : 'Unidentified',
-      ports: result.openPorts, status: 'pending', discoveredAt: new Date().toISOString(),
-    });
+    for (const result of found.filter(Boolean)) {
+      const hostname = localAddresses.includes(result.address) ? os.hostname() : await reverseHostname(result.address);
+      const role = inferDeviceRole(result.openPorts, hostname);
+      discoveries.push({
+        id: createId('discovery'), networkId: network.id, ip: result.address,
+        hostname, vendor: localAddresses.includes(result.address) ? 'Local interface' : 'Unidentified',
+        ports: result.openPorts, services: classifyServices(result.openPorts), role, deviceType: deviceTypeForRole(role),
+        description: `Observed ${result.openPorts.length} open service${result.openPorts.length === 1 ? '' : 's'}`,
+        status: 'pending', discoveredAt: new Date().toISOString(),
+      });
+    }
   }
   state.discoveries = [...discoveries, ...state.discoveries];
   addChange(state, 'scan', `Scan completed for ${network.name}`);
@@ -90,6 +99,44 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/export') {
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="lantern-backup.json"' });
     return response.end(JSON.stringify(exportPayload(state), null, 2));
+  }
+  if (request.method === 'GET' && url.pathname.startsWith('/api/networks/') && url.pathname.endsWith('/addresses')) {
+    const networkId = url.pathname.split('/')[3];
+    const network = state.networks.find((item) => item.id === networkId);
+    if (!network) return json(response, 404, { error: 'Network not found' });
+    const used = state.addresses.filter((address) => address.networkId === networkId).map((address) => ({ ...address, deviceName: state.devices.find((device) => device.id === address.deviceId)?.name || null })).sort((a, b) => a.ip.localeCompare(b.ip, undefined, { numeric: true }));
+    const usedSet = new Set(used.map((address) => address.ip));
+    const unused = usableIps(network.cidr).filter((ip) => !usedSet.has(ip)).map((ip) => ({ ip, description: '' }));
+    return json(response, 200, { network, used, unused });
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/networks/') && url.pathname.endsWith('/addresses')) {
+    const networkId = url.pathname.split('/')[3];
+    const network = state.networks.find((item) => item.id === networkId);
+    if (!network) return json(response, 404, { error: 'Network not found' });
+    const input = await body(request);
+    if (!input.ip || !isIpInCidr(input.ip, network.cidr)) return json(response, 400, { error: 'IP address is outside this network' });
+    if (addressAlreadyAllocated(state.addresses, input.ip)) return json(response, 409, { error: 'That IP address is already allocated' });
+    const address = { id: createId('ip'), ...buildAddress({ networkId, ip: input.ip, hostname: input.hostname, description: input.description, deviceId: input.deviceId || null }) };
+    state.addresses.push(address);
+    addChange(state, 'ip', `Reserved ${address.ip} in ${network.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, address);
+  }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/addresses/')) {
+    const id = url.pathname.split('/')[3];
+    const address = state.addresses.find((item) => item.id === id);
+    if (!address) return json(response, 404, { error: 'Address not found' });
+    const input = await body(request);
+    const network = state.networks.find((item) => item.id === address.networkId);
+    const nextIp = String(input.ip || address.ip).trim();
+    if (!network || !isIpInCidr(nextIp, network.cidr)) return json(response, 400, { error: 'IP address is outside this network' });
+    if (nextIp !== address.ip && addressAlreadyAllocated(state.addresses, nextIp)) return json(response, 409, { error: 'That IP address is already allocated' });
+    address.ip = nextIp;
+    address.description = String(input.description || '').trim();
+    address.hostname = String(input.hostname || address.hostname || '').trim();
+    addChange(state, 'ip', `Updated ${address.ip}`);
+    await saveState(dataPath, state);
+    return json(response, 200, address);
   }
   if (request.method === 'POST' && url.pathname === '/api/import') {
     try {
@@ -159,10 +206,13 @@ async function api(request, response, url) {
     const network = input.networkId ? state.networks.find((item) => item.id === input.networkId) : null;
     if (input.networkId && !network) return json(response, 404, { error: 'Network not found' });
     if (input.ip && (!network || !isIpInCidr(input.ip, network.cidr))) return json(response, 400, { error: 'IP address is outside the selected network' });
-    if (input.ip && state.addresses.some((address) => address.ip === input.ip)) return json(response, 409, { error: 'That IP address is already allocated' });
-    const device = { id: createId('device'), name: details.name, role: input.role || 'Unassigned', rackId: input.rackId || null, rackUnit, height: details.height, status: 'active' };
+    const existingAddress = input.ip ? state.addresses.find((address) => address.ip === input.ip) : null;
+    if (existingAddress?.deviceId) return json(response, 409, { error: 'That IP is already assigned to an existing device; edit its rack placement instead' });
+    const role = input.role || 'Unassigned';
+    const device = { id: createId('device'), name: details.name, role, deviceType: input.deviceType || deviceTypeForRole(role), description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height, status: 'active' };
     state.devices.push(device);
-    if (input.ip) state.addresses.push(buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, deviceId: device.id }));
+    if (input.ip && existingAddress) Object.assign(existingAddress, buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id, source: existingAddress.source || 'manual' }));
+    else if (input.ip) state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id }) });
     addChange(state, 'device', `Added ${device.name}`);
     await saveState(dataPath, state);
     return json(response, 201, device);
@@ -181,10 +231,10 @@ async function api(request, response, url) {
     const discovery = state.discoveries.find((item) => item.id === id);
     if (!discovery) return json(response, 404, { error: 'Discovery not found' });
     const input = await body(request);
-    const device = { id: createId('device'), name: input.name?.trim() || discovery.hostname || discovery.ip, role: input.role || 'Discovered device', rackId: input.rackId || null, rackUnit: Number(input.rackUnit) || null, height: 1, status: 'active' };
+    const device = { id: createId('device'), name: input.name?.trim() || discovery.hostname || discovery.ip, role: input.role || discovery.role || 'Discovered device', deviceType: discovery.deviceType || 'server', description: discovery.description || '', rackId: input.rackId || null, rackUnit: Number(input.rackUnit) || null, height: 1, status: 'active' };
     if (addressAlreadyAllocated(state.addresses, discovery.ip)) return json(response, 409, { error: 'That IP is already assigned; merge this observation instead' });
     state.devices.push(device);
-    state.addresses.push({ id: createId('ip'), networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, deviceId: device.id, source: 'discovery' });
+    state.addresses.push({ id: createId('ip'), networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, description: discovery.description || '', deviceId: device.id, source: 'discovery' });
     discovery.status = 'confirmed';
     addChange(state, 'device', `Confirmed ${device.name} from discovery`);
     await saveState(dataPath, state);
