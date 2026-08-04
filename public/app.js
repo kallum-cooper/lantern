@@ -1,4 +1,5 @@
 let snapshot;
+let searchTerm = '';
 const $ = (selector) => document.querySelector(selector);
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
 const relativeTime = (date) => { const minutes = Math.max(1, Math.round((Date.now() - new Date(date)) / 60000)); return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`; };
@@ -15,6 +16,13 @@ function render() {
   $('#rack-grid').innerHTML = racks.map((rack) => `<article class="rack-card"><h3>${escapeHtml(rack.name)}</h3><p>Home Lab · ${rack.height}U rack · front elevation</p><div class="rack-body"><div class="rack-labels">${Array.from({ length: 12 }, (_, i) => `<span>${rack.height - i}</span>`).join('')}</div><div class="rack-face">${Array.from({ length: 12 }, (_, i) => { const device = rack.devices.find((item) => item.rackUnit === rack.height - i); return `<div class="rack-unit ${device ? `device ${i % 2 ? 'blue' : ''}` : ''}">${device ? `<span>${escapeHtml(device.name)}</span>` : ''}</div>`; }).join('')}</div></div></article>`).join('');
   $('#discovery-list').innerHTML = discoveries.filter((item) => item.status === 'pending').length ? discoveries.filter((item) => item.status === 'pending').map((item) => `<div class="discovery-card"><div class="discovery-symbol">◎</div><div class="discovery-copy"><strong>${escapeHtml(item.hostname || item.ip)}</strong><small>${escapeHtml(item.ip)} · ${escapeHtml(item.vendor)} · observed ${relativeTime(item.discoveredAt)}</small></div><button class="button secondary confirm-discovery" data-id="${item.id}">Confirm device</button></div>`).join('') : '<div class="empty">No pending discoveries. Run a scan when you are ready.</div>';
   document.querySelectorAll('.confirm-discovery').forEach((button) => button.addEventListener('click', () => confirmDiscovery(button.dataset.id)));
+  applySearch();
+}
+function applySearch() {
+  const query = searchTerm.trim().toLowerCase();
+  document.querySelectorAll('.activity-item,.network-row,.rack-card,.discovery-card,#ipam-table tr').forEach((node) => {
+    node.hidden = Boolean(query) && !node.textContent.toLowerCase().includes(query);
+  });
 }
 async function refresh() { const response = await fetch('/api/summary'); snapshot = await response.json(); render(); }
 async function scan(networkId = $('#scan-network').value || snapshot.networks[0]?.id) { const network = snapshot.networks.find((item) => item.id === networkId); if (!network) return toast('Create a network before scanning.'); toast(`Scanning ${network.name}…`); const response = await fetch('/api/scan', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ networkId: network.id }) }); if (!response.ok) return toast('Scan failed. Check the server logs.'); await refresh(); toast('Scan complete. Review the observations.'); }
@@ -42,4 +50,5 @@ function showView(view) { document.querySelectorAll('.view').forEach((node) => n
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
 document.querySelectorAll('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
 $('#add-device').addEventListener('click', addDevice); $('#add-device-rack').addEventListener('click', addDevice); $('#add-network').addEventListener('click', addNetwork); $('#scan-quick').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-ipam').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-discovery').addEventListener('click', () => scan());
+$('#global-search').addEventListener('input', (event) => { searchTerm = event.target.value; applySearch(); });
 refresh().catch(() => toast('Lantern API is unavailable. Start the server first.'));

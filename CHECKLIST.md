@@ -28,7 +28,7 @@
 - [ ] Add onboarding/setup flow.
 - [x] Add site and rack creation APIs.
 - [x] Add initial network and device creation controls.
-- [ ] Add search and filtering.
+- [x] Add global search and filtering.
 - [ ] Add standalone-device homelab map view.
 
 ## IPAM and inventory

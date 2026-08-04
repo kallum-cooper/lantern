@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Lantern · Homelab inventory</title>
     <link rel="stylesheet" href="/styles.css" />
+    <link rel="stylesheet" href="/search.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -26,7 +27,7 @@
       <main class="main-content">
         <header class="topbar">
           <div><p class="breadcrumb">HOME LAB <span>/</span> <strong id="page-label">OVERVIEW</strong></p><h1 id="page-title">Good evening, Kallum <span>✦</span></h1></div>
-          <div class="top-actions"><button class="icon-button" aria-label="Search">⌕</button><button class="icon-button" aria-label="Notifications">♢</button><button class="button primary" id="add-device">+ Add device</button></div>
+          <div class="top-actions"><label class="search-box"><span>⌕</span><input id="global-search" type="search" placeholder="Search inventory" aria-label="Search inventory" /></label><button class="icon-button" aria-label="Notifications">♢</button><button class="button primary" id="add-device">+ Add device</button></div>
         </header>
 
         <section id="view-overview" class="view active-view">
