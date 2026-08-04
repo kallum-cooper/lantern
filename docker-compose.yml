@@ -1,0 +1,15 @@
+services:
+  lantern:
+    build: .
+    container_name: lantern
+    restart: unless-stopped
+    ports:
+      - "4173:4173"
+    environment:
+      PORT: 4173
+      LANTERN_DATA: /app/data/lantern.json
+    volumes:
+      - lantern-data:/app/data
+
+volumes:
+  lantern-data:

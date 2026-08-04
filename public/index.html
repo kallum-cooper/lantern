@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lantern · Homelab inventory</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand"><span class="brand-mark">✦</span><span>lantern</span></div>
+        <p class="eyebrow">HOME LAB / OVERVIEW</p>
+        <nav>
+          <button class="nav-item active" data-view="overview"><span>◒</span> Overview</button>
+          <button class="nav-item" data-view="ipam"><span>⌁</span> IPAM</button>
+          <button class="nav-item" data-view="racks"><span>▦</span> Racks & map</button>
+          <button class="nav-item" data-view="discovery"><span>◎</span> Discovery <b id="nav-discovery-count">0</b></button>
+        </nav>
+        <div class="sidebar-bottom">
+          <div class="health"><span class="status-dot"></span><div><strong>Local mode</strong><small>Data stays on this host</small></div></div>
+          <div class="user-chip"><span class="avatar">KC</span><div><strong>Home lab</strong><small>Administrator</small></div><span>•••</span></div>
+        </div>
+      </aside>
+
+      <main class="main-content">
+        <header class="topbar">
+          <div><p class="breadcrumb">HOME LAB <span>/</span> <strong id="page-label">OVERVIEW</strong></p><h1 id="page-title">Good evening, Kallum <span>✦</span></h1></div>
+          <div class="top-actions"><button class="icon-button" aria-label="Search">⌕</button><button class="icon-button" aria-label="Notifications">♢</button><button class="button primary" id="add-device">+ Add device</button></div>
+        </header>
+
+        <section id="view-overview" class="view active-view">
+          <div class="hero-row"><div><p class="eyebrow accent">TUESDAY, AUGUST 4, 2026</p><h2>Your lab at a glance</h2><p class="muted">A calm view of what’s running, where it lives, and what needs your attention.</p></div><button class="button secondary" id="scan-quick">◎ Scan a network</button></div>
+          <div class="metrics" id="metrics"></div>
+          <div class="content-grid">
+            <section class="panel activity-panel"><div class="panel-heading"><div><p class="eyebrow">LIVE INVENTORY</p><h3>Recently changed</h3></div><button class="text-button" data-view-link="discovery">View all →</button></div><div id="changes" class="activity-list"></div></section>
+            <section class="panel network-panel"><div class="panel-heading"><div><p class="eyebrow">NETWORK HEALTH</p><h3>Address space</h3></div><button class="text-button" data-view-link="ipam">Open IPAM →</button></div><div id="networks"></div></section>
+          </div>
+          <section class="panel rack-preview"><div class="panel-heading"><div><p class="eyebrow">PHYSICAL LAYOUT</p><h3>Rack overview</h3></div><button class="text-button" data-view-link="racks">Open 2D view →</button></div><div id="rack-mini"></div></section>
+        </section>
+
+        <section id="view-ipam" class="view"><div class="section-heading"><div><p class="eyebrow accent">NETWORKS & ADDRESSES</p><h2>IPAM</h2><p class="muted">Keep every address accounted for, without the spreadsheet archaeology.</p></div><button class="button secondary" id="scan-ipam">◎ Scan a network</button></div><div class="panel table-panel"><table><thead><tr><th>Network</th><th>VLAN</th><th>Site</th><th>Allocated</th><th>Capacity</th><th>Status</th></tr></thead><tbody id="ipam-table"></tbody></table></div></section>
+
+        <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><button class="button primary" id="add-device-rack">+ Add device</button></div><div id="rack-grid" class="rack-grid"></div></section>
+
+        <section id="view-discovery" class="view"><div class="section-heading"><div><p class="eyebrow accent">SAFE, OPT-IN SCANNING</p><h2>Discovery review</h2><p class="muted">New observations stay here until you decide they belong in your inventory.</p></div><div class="scan-controls"><select id="scan-network" aria-label="Network to scan"></select><button class="button secondary" id="scan-discovery">◎ Run scan</button></div></div><div id="discovery-list" class="discovery-list"></div></section>
+      </main>
+    </div>
+    <div id="toast" class="toast" role="status"></div>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
