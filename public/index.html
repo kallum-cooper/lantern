@@ -27,7 +27,7 @@
       <main class="main-content">
         <header class="topbar">
           <div><p class="breadcrumb">HOME LAB <span>/</span> <strong id="page-label">OVERVIEW</strong></p><h1 id="page-title">Good evening, Kallum <span>✦</span></h1></div>
-          <div class="top-actions"><label class="search-box"><span>⌕</span><input id="global-search" type="search" placeholder="Search inventory" aria-label="Search inventory" /></label><button class="icon-button" aria-label="Notifications">♢</button><button class="button primary" id="add-device">+ Add device</button></div>
+          <div class="top-actions"><label class="search-box"><span>⌕</span><input id="global-search" type="search" placeholder="Search inventory" aria-label="Search inventory" /></label><button class="icon-button" aria-label="Notifications">♢</button><button class="button secondary" id="setup-site">+ Set up</button><button class="button primary" id="add-device">+ Add device</button></div>
         </header>
 
         <section id="view-overview" class="view active-view">
@@ -42,11 +42,12 @@
 
         <section id="view-ipam" class="view"><div class="section-heading"><div><p class="eyebrow accent">NETWORKS & ADDRESSES</p><h2>IPAM</h2><p class="muted">Keep every address accounted for, without the spreadsheet archaeology.</p></div><div class="scan-controls"><button class="button secondary" id="add-network">+ Add network</button><button class="button secondary" id="scan-ipam">◎ Scan a network</button></div></div><div class="panel table-panel"><table><thead><tr><th>Network</th><th>VLAN</th><th>Site</th><th>Allocated</th><th>Capacity</th><th>Status</th></tr></thead><tbody id="ipam-table"></tbody></table></div></section>
 
-        <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><button class="button primary" id="add-device-rack">+ Add device</button></div><div id="rack-grid" class="rack-grid"></div></section>
+        <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><div class="scan-controls"><button class="button secondary" id="add-rack">+ Add rack</button><button class="button primary" id="add-device-rack">+ Add device</button></div></div><div id="rack-grid" class="rack-grid"></div></section>
 
         <section id="view-discovery" class="view"><div class="section-heading"><div><p class="eyebrow accent">SAFE, OPT-IN SCANNING</p><h2>Discovery review</h2><p class="muted">New observations stay here until you decide they belong in your inventory.</p></div><div class="scan-controls"><select id="scan-network" aria-label="Network to scan"></select><button class="button secondary" id="scan-discovery">◎ Run scan</button></div></div><div id="discovery-list" class="discovery-list"></div></section>
       </main>
     </div>
+    <div id="resource-modal" class="modal-backdrop" hidden><form id="resource-form" class="modal-card"><div class="modal-heading"><div><p class="eyebrow accent">LOCAL INVENTORY</p><h2 id="modal-title">Add resource</h2></div><button type="button" class="modal-close" id="close-modal" aria-label="Close">×</button></div><label class="form-label">Resource type<select id="resource-type"><option value="site">Site</option><option value="rack">Rack</option><option value="network">Network</option><option value="device">Device</option></select></label><div id="resource-fields"></div><div class="modal-actions"><button type="button" class="button secondary" id="cancel-modal">Cancel</button><button type="submit" class="button primary">Create resource</button></div></form></div>
     <div id="toast" class="toast" role="status"></div>
     <script src="/app.js" type="module"></script>
   </body>

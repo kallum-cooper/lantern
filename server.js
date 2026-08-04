@@ -29,6 +29,7 @@ async function body(request) {
 function summary() {
   return {
     site: state.sites[0],
+    sites: state.sites,
     counts: {
       devices: state.devices.length,
       addresses: state.addresses.length,

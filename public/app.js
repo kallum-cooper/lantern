@@ -50,9 +50,32 @@ async function addNetwork() {
   const response = await fetch('/api/networks', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name, cidr, vlan }) });
   if (response.ok) { await refresh(); toast(`${name} added to IPAM.`); } else { const result = await response.json(); toast(result.error || 'Could not add network.'); }
 }
+function field(label, name, type = 'text', extra = '') { return `<label class="form-label">${label}<input name="${name}" type="${type}" ${extra} /></label>`; }
+function openResourceModal(type) {
+  $('#resource-type').value = type;
+  renderResourceFields();
+  $('#resource-modal').hidden = false;
+}
+function renderResourceFields() {
+  const type = $('#resource-type').value;
+  $('#modal-title').textContent = `Add ${type}`;
+  if (type === 'site') $('#resource-fields').innerHTML = `<div class="form-grid">${field('Name', 'name', 'text', 'required')}${field('Location', 'location')}</div>${field('Description', 'description')}`;
+  if (type === 'rack') $('#resource-fields').innerHTML = `${field('Name', 'name', 'text', 'required')}<div class="form-grid">${field('Height (U)', 'height', 'number', 'value="12" min="1" max="60" required')}${field('Width (mm)', 'width', 'number', 'value="600" min="1"')}</div><label class="form-label">Site<select name="siteId">${snapshot.sites ? snapshot.sites.map((site) => `<option value="${site.id}">${escapeHtml(site.name)}</option>`).join('') : `<option value="${snapshot.site?.id || ''}">${escapeHtml(snapshot.site?.name || 'Home Lab')}</option>`}</select></label>`;
+  if (type === 'network') $('#resource-fields').innerHTML = `${field('Name', 'name', 'text', 'required')}<div class="form-grid">${field('CIDR', 'cidr', 'text', 'placeholder="192.168.10.0/24" required')}${field('VLAN', 'vlan', 'number', 'min="1" max="4094"')}</div>`;
+  if (type === 'device') $('#resource-fields').innerHTML = `${field('Name', 'name', 'text', 'required')}<div class="form-grid">${field('Role', 'role')} ${field('Height (U)', 'height', 'number', 'value="1" min="1" max="48" required')}</div><div class="form-grid">${field('Rack unit', 'rackUnit', 'number', 'min="1"')}<label class="form-label">Rack<select name="rackId"><option value="">Standalone</option>${snapshot.racks.map((rack) => `<option value="${rack.id}">${escapeHtml(rack.name)}</option>`).join('')}</select></label></div><div class="form-grid">${field('IP address', 'ip', 'text', 'placeholder="192.168.1.10"')}<label class="form-label">Network<select name="networkId"><option value="">No network</option>${snapshot.networks.map((network) => `<option value="${network.id}">${escapeHtml(network.name)}</option>`).join('')}</select></label></div>${field('Hostname', 'hostname')}`;
+}
+function closeResourceModal() { $('#resource-modal').hidden = true; }
+async function submitResource(event) {
+  event.preventDefault();
+  const type = $('#resource-type').value;
+  const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
+  const response = await fetch(`/api/${type}s`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+  if (!response.ok) { const result = await response.json(); toast(result.error || `Could not create ${type}.`); return; }
+  closeResourceModal(); await refresh(); toast(`${type[0].toUpperCase() + type.slice(1)} added.`);
+}
 function showView(view) { document.querySelectorAll('.view').forEach((node) => node.classList.remove('active-view')); $(`#view-${view}`).classList.add('active-view'); document.querySelectorAll('.nav-item').forEach((node) => node.classList.toggle('active', node.dataset.view === view)); const label = view === 'racks' ? 'RACKS & MAP' : view.toUpperCase(); $('#page-label').textContent = label; $('#page-title').innerHTML = view === 'overview' ? 'Good evening, Kallum <span>✦</span>' : `${label[0] + label.slice(1).toLowerCase()} <span>✦</span>`; }
 document.querySelectorAll('.nav-item').forEach((button) => button.addEventListener('click', () => showView(button.dataset.view)));
 document.querySelectorAll('[data-view-link]').forEach((button) => button.addEventListener('click', () => showView(button.dataset.viewLink)));
-$('#add-device').addEventListener('click', addDevice); $('#add-device-rack').addEventListener('click', addDevice); $('#add-network').addEventListener('click', addNetwork); $('#scan-quick').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-ipam').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-discovery').addEventListener('click', () => scan());
+$('#add-device').addEventListener('click', () => openResourceModal('device')); $('#add-device-rack').addEventListener('click', () => openResourceModal('device')); $('#add-network').addEventListener('click', () => openResourceModal('network')); $('#setup-site').addEventListener('click', () => openResourceModal('site')); $('#add-rack').addEventListener('click', () => openResourceModal('rack')); $('#resource-type').addEventListener('change', renderResourceFields); $('#resource-form').addEventListener('submit', submitResource); $('#close-modal').addEventListener('click', closeResourceModal); $('#cancel-modal').addEventListener('click', closeResourceModal); $('#scan-quick').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-ipam').addEventListener('click', () => scan(snapshot.networks[0]?.id)); $('#scan-discovery').addEventListener('click', () => scan());
 $('#global-search').addEventListener('input', (event) => { searchTerm = event.target.value; applySearch(); });
 refresh().catch(() => toast('Lantern API is unavailable. Start the server first.'));
