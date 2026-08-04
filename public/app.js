@@ -1,5 +1,6 @@
 let snapshot;
 let searchTerm = '';
+let editingDeviceId = null;
 const $ = (selector) => document.querySelector(selector);
 const savedTheme = localStorage.getItem('lantern-theme');
 const preferredTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
@@ -19,10 +20,12 @@ function render() {
   $('#sites-grid').innerHTML = sites.map((site) => `<article class="site-card"><h3>${escapeHtml(site.name)}</h3><p>${escapeHtml(site.location || 'Location not set')} · ${escapeHtml(site.description || 'No description yet')}</p><div class="site-stats"><div class="site-stat"><strong>${site.rackCount}</strong><small>Racks</small></div><div class="site-stat"><strong>${site.deviceCount}</strong><small>Devices</small></div><div class="site-stat"><strong>${site.networkCount}</strong><small>Networks</small></div></div></article>`).join('');
   $('#ipam-table').innerHTML = networks.map((network) => `<tr><td><button class="network-link" data-network-id="${network.id}">${escapeHtml(network.name)}</button><br><span class="muted">${escapeHtml(network.cidr)}</span></td><td>${network.vlan ?? '—'}</td><td>${escapeHtml(sites.find((site) => site.id === network.siteId)?.name || 'Unassigned')}</td><td>${network.addressCount}</td><td>${network.capacity}</td><td><span class="pill">Healthy</span></td></tr>`).join('');
   $('#rack-grid').innerHTML = racks.map((rack) => `<article class="rack-card"><h3>${escapeHtml(rack.name)}</h3><p>${escapeHtml(sites.find((site) => site.id === rack.siteId)?.name || 'Unassigned')} · ${rack.height}U rack · front elevation</p><div class="rack-body"><div class="rack-labels">${Array.from({ length: rack.height }, (_, i) => `<span>${rack.height - i}</span>`).join('')}</div><div class="rack-face" style="grid-template-rows:repeat(${rack.height},24px)">${Array.from({ length: rack.height }, (_, i) => { const device = rack.devices.find((item) => item.rackUnit === rack.height - i); return `<div class="rack-unit ${device ? `device ${i % 2 ? 'blue' : ''}` : ''}">${device ? `<img src="/assets/${escapeHtml(device.deviceType || 'server')}.png" alt=""/><span>${escapeHtml(device.name)}${device.address ? `<small>${escapeHtml(device.address.ip)}</small>` : ''}</span><button class="remove-device" data-id="${device.id}" title="Remove ${escapeHtml(device.name)}">×</button>` : ''}</div>`; }).join('')}</div></div></article>`).join('');
+  $('#unplaced-devices').innerHTML = devices.filter((device) => !device.rackId).length ? `<div class="panel unplaced-panel"><div class="panel-heading"><div><p class="eyebrow">WAITING FOR A HOME</p><h3>Unplaced devices</h3></div></div>${devices.filter((device) => !device.rackId).map((device) => `<div class="unplaced-row"><img src="/assets/${escapeHtml(device.deviceType || 'server')}.png" alt=""/><div><strong>${escapeHtml(device.name)}</strong><small>${escapeHtml(device.address?.ip || 'No IP assigned')} · ${escapeHtml(device.description || device.role || 'No description')}</small></div><button class="button secondary place-device" data-id="${device.id}">Place in rack</button></div>`).join('')}</div>` : '';
   $('#discovery-list').innerHTML = discoveries.filter((item) => item.status === 'pending').length ? discoveries.filter((item) => item.status === 'pending').map((item) => `<div class="discovery-card"><div class="discovery-symbol">◎</div><div class="discovery-copy"><strong>${escapeHtml(item.hostname || item.ip)}</strong><small>${escapeHtml(item.ip)} · ${escapeHtml(item.role || 'Unknown device')} · ${escapeHtml((item.services || []).join(', ') || 'No recognised services')} · observed ${relativeTime(item.discoveredAt)}</small></div><button class="button secondary ignore-discovery" data-id="${item.id}">Ignore</button><button class="button secondary confirm-discovery" data-id="${item.id}">Confirm device</button></div>`).join('') : '<div class="empty">No pending discoveries. Run a scan when you are ready.</div>';
   document.querySelectorAll('.confirm-discovery').forEach((button) => button.addEventListener('click', () => confirmDiscovery(button.dataset.id)));
   document.querySelectorAll('.ignore-discovery').forEach((button) => button.addEventListener('click', () => ignoreDiscovery(button.dataset.id)));
   document.querySelectorAll('.remove-device').forEach((button) => button.addEventListener('click', () => removeDevice(button.dataset.id)));
+  document.querySelectorAll('.place-device').forEach((button) => button.addEventListener('click', () => openResourceModal('device', snapshot.devices.find((device) => device.id === button.dataset.id))));
   document.querySelectorAll('.network-link').forEach((button) => button.addEventListener('click', () => selectNetwork(button.dataset.networkId)));
   $('#sites-grid').querySelectorAll('.site-card').forEach((card) => card.addEventListener('click', () => showView('sites')));
   applySearch();
@@ -61,9 +64,14 @@ async function addNetwork() {
   if (response.ok) { await refresh(); toast(`${name} added to IPAM.`); } else { const result = await response.json(); toast(result.error || 'Could not add network.'); }
 }
 function field(label, name, type = 'text', extra = '') { return `<label class="form-label">${label}<input name="${name}" type="${type}" ${extra} /></label>`; }
-function openResourceModal(type) {
+function openResourceModal(type, device = null) {
+  editingDeviceId = device?.id || null;
   $('#resource-type').value = type;
   renderResourceFields();
+  if (device) {
+    for (const [name, value] of Object.entries({ name: device.name, role: device.role, height: device.height, rackUnit: device.rackUnit || '', rackId: device.rackId || '', networkId: device.address?.networkId || '', ip: device.address?.ip || '', hostname: device.address?.hostname || '', description: device.description || device.address?.description || '' })) { const input = document.querySelector(`#resource-fields [name="${name}"]`); if (input) input.value = value; }
+    $('#modal-title').textContent = `Edit ${device.name}`;
+  }
   $('#resource-modal').hidden = false;
 }
 function renderResourceFields() {
@@ -74,7 +82,7 @@ function renderResourceFields() {
   if (type === 'network') $('#resource-fields').innerHTML = `${field('Name', 'name', 'text', 'required')}<div class="form-grid">${field('CIDR', 'cidr', 'text', 'placeholder="192.168.10.0/24" required')}${field('VLAN', 'vlan', 'number', 'min="1" max="4094"')}</div>`;
   if (type === 'device') $('#resource-fields').innerHTML = `${field('Name', 'name', 'text', 'required')}<div class="form-grid">${field('Role', 'role')} ${field('Height (U)', 'height', 'number', 'value="1" min="1" max="48" required')}</div><div class="form-grid">${field('Rack unit', 'rackUnit', 'number', 'min="1"')}<label class="form-label">Rack<select name="rackId"><option value="">Standalone</option>${snapshot.racks.map((rack) => `<option value="${rack.id}">${escapeHtml(rack.name)}</option>`).join('')}</select></label></div><div class="form-grid">${field('IP address', 'ip', 'text', 'placeholder="192.168.1.10"')}<label class="form-label">Network<select name="networkId"><option value="">No network</option>${snapshot.networks.map((network) => `<option value="${network.id}">${escapeHtml(network.name)}</option>`).join('')}</select></label></div>${field('Hostname', 'hostname')}`;
 }
-function closeResourceModal() { $('#resource-modal').hidden = true; }
+function closeResourceModal() { $('#resource-modal').hidden = true; editingDeviceId = null; }
 async function exportBackup() { const response = await fetch('/api/export'); if (!response.ok) return toast('Could not export backup.'); const blob = await response.blob(); const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'lantern-backup.json'; link.click(); URL.revokeObjectURL(link.href); toast('Backup downloaded.'); }
 function chooseBackup() { $('#backup-file').click(); }
 async function importBackup(event) { const file = event.target.files[0]; if (!file) return; if (!window.confirm('Restore this backup? The current local inventory will be replaced.')) return; let payload; try { payload = JSON.parse(await file.text()); } catch { toast('That file is not valid JSON.'); return; } const response = await fetch('/api/import', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) }); if (!response.ok) { const result = await response.json(); toast(result.error || 'Could not restore backup.'); return; } await refresh(); toast('Inventory restored.'); event.target.value = ''; }
@@ -82,7 +90,8 @@ async function submitResource(event) {
   event.preventDefault();
   const type = $('#resource-type').value;
   const payload = Object.fromEntries(new FormData(event.currentTarget).entries());
-  const response = await fetch(`/api/${type}s`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
+  const endpoint = editingDeviceId ? `/api/devices/${editingDeviceId}` : `/api/${type}s`;
+  const response = await fetch(endpoint, { method: editingDeviceId ? 'PATCH' : 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(payload) });
   if (!response.ok) { const result = await response.json(); toast(result.error || `Could not create ${type}.`); return; }
   closeResourceModal(); await refresh(); toast(`${type[0].toUpperCase() + type.slice(1)} added.`);
 }

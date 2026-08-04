@@ -226,6 +226,33 @@ async function api(request, response, url) {
     await saveState(dataPath, state);
     return json(response, 200, { ok: true });
   }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/devices/')) {
+    const id = url.pathname.split('/')[3];
+    const device = state.devices.find((item) => item.id === id);
+    if (!device) return json(response, 404, { error: 'Device not found' });
+    const input = await body(request);
+    let details;
+    try { details = validateDeviceInput(input); } catch (error) { return json(response, 400, { error: error.message }); }
+    const rack = input.rackId ? state.racks.find((item) => item.id === input.rackId) : null;
+    const rackUnit = Number(input.rackUnit) || null;
+    if (input.rackId && !rack) return json(response, 404, { error: 'Rack not found' });
+    if (rack && rackUnit && (rackUnit < 1 || rackUnit + details.height - 1 > rack.height)) return json(response, 400, { error: 'Device does not fit in that rack position' });
+    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height, id)) return json(response, 409, { error: 'Those rack units are already occupied' });
+    const currentAddress = state.addresses.find((address) => address.deviceId === id);
+    const nextIp = String(input.ip || '').trim();
+    if (nextIp) {
+      const network = state.networks.find((item) => item.id === input.networkId);
+      if (!network || !isIpInCidr(nextIp, network.cidr)) return json(response, 400, { error: 'IP address is outside the selected network' });
+      const conflictingAddress = state.addresses.find((address) => address.ip === nextIp && address.deviceId !== id);
+      if (conflictingAddress) return json(response, 409, { error: 'That IP is already assigned to another device' });
+      if (currentAddress) Object.assign(currentAddress, buildAddress({ networkId: network.id, ip: nextIp, hostname: input.hostname || details.name, description: input.description, deviceId: id, source: currentAddress.source || 'manual' }));
+      else state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: nextIp, hostname: input.hostname || details.name, description: input.description, deviceId: id }) });
+    } else if (currentAddress) state.addresses = state.addresses.filter((address) => address.id !== currentAddress.id);
+    Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: input.deviceType || device.deviceType || deviceTypeForRole(input.role || device.role), description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height });
+    addChange(state, 'device', `Updated ${device.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, device);
+  }
   if (request.method === 'POST' && url.pathname.startsWith('/api/discoveries/') && url.pathname.endsWith('/confirm')) {
     const id = url.pathname.split('/')[3];
     const discovery = state.discoveries.find((item) => item.id === id);
