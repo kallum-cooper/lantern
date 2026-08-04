@@ -6,6 +6,7 @@
 - [x] Define local-first and optional vendor-hosted deployment models.
 - [x] Define open-source core versus paid convenience features.
 - [x] Create Lantern as a standalone Git repository.
+- [x] Create and push the public GitHub repository.
 - [x] Preserve the full product context in [PLAN.md](PLAN.md).
 
 ## Deployment foundation
