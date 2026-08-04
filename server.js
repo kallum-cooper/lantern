@@ -6,7 +6,7 @@ import os from 'node:os';
 import net from 'node:net';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
-import { validateDeviceInput, rackPlacementAvailable, buildAddress } from './src/inventory.js';
+import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -166,18 +166,51 @@ async function api(request, response, url) {
     await saveState(dataPath, state);
     return json(response, 201, device);
   }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/devices/')) {
+    const id = url.pathname.split('/')[3];
+    const device = state.devices.find((item) => item.id === id);
+    if (!device) return json(response, 404, { error: 'Device not found' });
+    removeDevice(state, id);
+    addChange(state, 'device', `Removed ${device.name}; linked IP records released`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
   if (request.method === 'POST' && url.pathname.startsWith('/api/discoveries/') && url.pathname.endsWith('/confirm')) {
     const id = url.pathname.split('/')[3];
     const discovery = state.discoveries.find((item) => item.id === id);
     if (!discovery) return json(response, 404, { error: 'Discovery not found' });
     const input = await body(request);
     const device = { id: createId('device'), name: input.name?.trim() || discovery.hostname || discovery.ip, role: input.role || 'Discovered device', rackId: input.rackId || null, rackUnit: Number(input.rackUnit) || null, height: 1, status: 'active' };
+    if (addressAlreadyAllocated(state.addresses, discovery.ip)) return json(response, 409, { error: 'That IP is already assigned; merge this observation instead' });
     state.devices.push(device);
     state.addresses.push({ id: createId('ip'), networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, deviceId: device.id, source: 'discovery' });
     discovery.status = 'confirmed';
     addChange(state, 'device', `Confirmed ${device.name} from discovery`);
     await saveState(dataPath, state);
     return json(response, 201, device);
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/discoveries/') && url.pathname.endsWith('/ignore')) {
+    const id = url.pathname.split('/')[3];
+    const discovery = state.discoveries.find((item) => item.id === id);
+    if (!discovery) return json(response, 404, { error: 'Discovery not found' });
+    discovery.status = 'ignored';
+    addChange(state, 'discovery', `Ignored discovery at ${discovery.ip}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/discoveries/') && url.pathname.endsWith('/merge')) {
+    const id = url.pathname.split('/')[3];
+    const discovery = state.discoveries.find((item) => item.id === id);
+    if (!discovery) return json(response, 404, { error: 'Discovery not found' });
+    const input = await body(request);
+    const device = state.devices.find((item) => item.id === input.deviceId);
+    if (!device) return json(response, 404, { error: 'Device not found' });
+    if (addressAlreadyAllocated(state.addresses, discovery.ip)) return json(response, 409, { error: 'That IP is already assigned' });
+    state.addresses.push(buildAddress({ networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, deviceId: device.id, source: 'discovery' }));
+    discovery.status = 'merged';
+    addChange(state, 'discovery', `Merged ${discovery.ip} into ${device.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
   }
   return json(response, 404, { error: 'Not found' });
 }

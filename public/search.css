@@ -2,3 +2,5 @@
 .search-box input{width:145px;border:0;outline:0;background:transparent;color:var(--ink);font:12px system-ui,sans-serif}
 .search-box input::placeholder{color:#a3aeab}
 @media(max-width:600px){.search-box input{width:90px}.search-box{padding:7px}}
+.rack-unit .remove-device{position:absolute;right:4px;top:3px;border:0;background:transparent;color:#4e7665;cursor:pointer;font-size:14px;line-height:1}
+.rack-unit .remove-device:hover{color:#a54f4f}

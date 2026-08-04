@@ -27,3 +27,13 @@ export function buildAddress(input = {}) {
     source: input.source || 'manual',
   };
 }
+
+export function addressAlreadyAllocated(addresses, ip) {
+  return addresses.some((address) => address.ip === String(ip || '').trim());
+}
+
+export function removeDevice(state, deviceId) {
+  state.devices = state.devices.filter((device) => device.id !== deviceId);
+  state.addresses = state.addresses.filter((address) => address.deviceId !== deviceId);
+  return state;
+}
