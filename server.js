@@ -7,6 +7,7 @@ import net from 'node:net';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, rackPlacementAvailable, buildAddress } from './src/inventory.js';
+import { exportPayload, validateImport } from './src/transfer.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -83,7 +84,22 @@ async function scanNetwork(network) {
 }
 
 async function api(request, response, url) {
+  if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
+  if (request.method === 'GET' && url.pathname === '/api/export') {
+    response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="lantern-backup.json"' });
+    return response.end(JSON.stringify(exportPayload(state), null, 2));
+  }
+  if (request.method === 'POST' && url.pathname === '/api/import') {
+    try {
+      state = validateImport(await body(request));
+    } catch (error) {
+      return json(response, 400, { error: error.message });
+    }
+    addChange(state, 'system', 'Inventory restored from backup');
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true, counts: summary().counts });
+  }
   if (request.method === 'POST' && url.pathname === '/api/scan') {
     const input = await body(request);
     const network = state.networks.find((item) => item.id === input.networkId);
@@ -107,6 +123,28 @@ async function api(request, response, url) {
     addChange(state, 'network', `Added ${network.name} (${details.network}/${details.prefix})`);
     await saveState(dataPath, state);
     return json(response, 201, network);
+  }
+  if (request.method === 'POST' && url.pathname === '/api/sites') {
+    const input = await body(request);
+    const name = String(input.name || '').trim();
+    if (!name) return json(response, 400, { error: 'Site name is required' });
+    const site = { id: createId('site'), name, location: String(input.location || '').trim(), description: String(input.description || '').trim() };
+    state.sites.push(site);
+    addChange(state, 'site', `Added ${site.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, site);
+  }
+  if (request.method === 'POST' && url.pathname === '/api/racks') {
+    const input = await body(request);
+    const name = String(input.name || '').trim();
+    const height = Number(input.height || 12);
+    if (!name) return json(response, 400, { error: 'Rack name is required' });
+    if (!Number.isInteger(height) || height < 1 || height > 60) return json(response, 400, { error: 'Rack height must be between 1U and 60U' });
+    const rack = { id: createId('rack'), siteId: input.siteId || state.sites[0]?.id || null, name, height, width: Number(input.width) || 600 };
+    state.racks.push(rack);
+    addChange(state, 'rack', `Added ${rack.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, rack);
   }
   if (request.method === 'POST' && url.pathname === '/api/devices') {
     const input = await body(request);

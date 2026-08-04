@@ -10,6 +10,12 @@ services:
       LANTERN_DATA: /app/data/lantern.json
     volumes:
       - lantern-data:/app/data
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:4173/api/health').then(r => process.exit(r.ok ? 0 : 1)).catch(() => process.exit(1))"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 5s
 
 volumes:
   lantern-data:

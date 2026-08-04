@@ -25,7 +25,7 @@
 - [x] Add discovery review view.
 - [x] Remove external font dependency so the app works offline.
 - [ ] Add onboarding/setup flow.
-- [ ] Add real forms for creating sites and racks.
+- [x] Add site and rack creation APIs.
 - [x] Add initial network and device creation controls.
 - [ ] Add search and filtering.
 - [ ] Add standalone-device homelab map view.
@@ -39,7 +39,7 @@
 - [x] Add manual IP assignment validation.
 - [x] Add rack-unit collision validation.
 - [ ] Add device editing and deletion with safe history.
-- [ ] Add import/export.
+- [x] Add versioned import/export backup format and APIs.
 - [ ] Add local backup and restore UI.
 - [ ] Add planned IPv6 support.
 
@@ -65,7 +65,7 @@
 - [ ] Add API integration tests.
 - [ ] Add browser smoke tests.
 - [ ] Validate Docker image build on a machine with Docker installed.
-- [ ] Add health endpoint and container healthcheck.
+- [x] Add health endpoint and container healthcheck.
 - [ ] Add authentication before exposing beyond a trusted LAN.
 
 ## Paid roadmap
