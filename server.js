@@ -9,7 +9,7 @@ import { loadState, saveState, seedState, createId, addChange } from './src/stor
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, normalizeDeviceType, isVirtualDevice, normalizeRackWidth, normalizeRackPosition, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
-import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
+import { classifyServices, inferDeviceRole, deviceTypeForRole, mergeScanDiscoveries } from './src/discovery.js';
 import { validateServiceInput, serviceKey, mergeDiscoveredServices, reconcileServiceObservations, serviceIcon } from './src/services.js';
 import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
@@ -108,10 +108,8 @@ async function scanNetwork(network) {
       });
     }
   }
-  const resolvedKeys = new Set(state.discoveries.filter((item) => item.status !== 'pending').map((item) => `${item.networkId}:${item.ip}`));
-  const pendingKeys = new Set();
-  const fresh = discoveries.filter((item) => { const key = `${item.networkId}:${item.ip}`; if (resolvedKeys.has(key) || pendingKeys.has(key)) return false; pendingKeys.add(key); return true; });
-  state.discoveries = [...fresh, ...state.discoveries];
+  const inventoryIps = new Set(state.addresses.filter((address) => address.deviceId).map((address) => `${address.networkId}:${address.ip}`));
+  state.discoveries = mergeScanDiscoveries(state.discoveries, discoveries, inventoryIps);
   addChange(state, 'scan', `Scan completed for ${network.name}`);
   await saveState(dataPath, state);
 }
@@ -133,13 +131,25 @@ async function api(request, response, url) {
     await saveState(dataPath, state);
     return json(response, 201, group);
   }
+  if (request.method === 'POST' && url.pathname === '/api/topology/infra') {
+    const input = await body(request);
+    const catalogue = { 'wall-panel': 'patch-panel-24', 'patch-panel-24': 'patch-panel-24', 'patch-panel-48': 'patch-panel-48', 'cable-management': 'appliance-1u' };
+    const visualProfile = catalogue[String(input.visualProfile || '').trim()] || 'patch-panel-24';
+    let details;
+    try { details = validateGroupInput({ name: input.name || visualProfile, x: input.x, y: input.y, width: 220, height: 140 }); } catch (error) { return json(response, 400, { error: error.message }); }
+    const item = { id: createId('group'), ...details, kind: 'infra', visualProfile };
+    state.topologyGroups.push(item);
+    addChange(state, 'topology', `Added topology infrastructure ${item.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, item);
+  }
   if (request.method === 'PATCH' && url.pathname.startsWith('/api/topology/groups/')) {
     const id = url.pathname.split('/')[4];
     const group = state.topologyGroups.find((item) => item.id === id);
     if (!group) return json(response, 404, { error: 'Topology group not found' });
     let details;
     try { details = validateGroupInput({ ...group, ...(await body(request)) }); } catch (error) { return json(response, 400, { error: error.message }); }
-    Object.assign(group, details);
+    Object.assign(group, details, { kind: group.kind, visualProfile: group.visualProfile });
     await saveState(dataPath, state);
     return json(response, 200, group);
   }

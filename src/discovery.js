@@ -18,3 +18,16 @@ export function deviceTypeForRole(role = '') {
   if (/server|nas|hypervisor/i.test(role)) return 'server';
   return 'server';
 }
+
+export function mergeScanDiscoveries(existing = [], fresh = [], inventoryIps = new Set()) {
+  const retained = existing.filter((item) => item.status === 'pending' || inventoryIps.has(`${item.networkId}:${item.ip}`));
+  const keys = new Set(retained.map((item) => `${item.networkId}:${item.ip}`));
+  const additions = [];
+  for (const item of fresh) {
+    const key = `${item.networkId}:${item.ip}`;
+    if (keys.has(key)) continue;
+    keys.add(key);
+    additions.push(item);
+  }
+  return [...additions, ...retained];
+}
