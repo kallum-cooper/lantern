@@ -6,3 +6,4 @@
 .overview-rack-slot img{object-fit:fill;object-position:center}
 .overview-side .panel{flex:1;min-height:0}.overview-side .network-panel{margin-top:0}.overview-grid~.activity-panel{margin-top:22px}.overview-grid~.device-detail{margin-top:22px}
 .overview-rack-slot span{position:absolute;right:0;top:0;bottom:0;width:min(34%,220px);display:flex;flex-direction:column;justify-content:center;padding:5px 8px 5px 28px;z-index:1;background:linear-gradient(90deg,rgba(18,38,31,0),rgba(18,38,31,.86) 34%);border-radius:0;color:#effff6;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+.overview-rack-face{width:min(100%,600px);grid-template-rows:repeat(12,58px)!important}

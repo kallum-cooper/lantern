@@ -2,3 +2,5 @@
 .rack-unit img{object-fit:cover;object-position:center}
 .rack-unit img{object-fit:fill;object-position:center}
 .rack-unit span{position:absolute;right:0;top:0;bottom:0;width:min(34%,220px);display:flex;flex-direction:column;justify-content:center;background:linear-gradient(90deg,rgba(15,31,27,0),rgba(15,31,27,.86) 34%);border-radius:0;padding:3px 7px 3px 28px;color:#f4fffa;text-align:left;text-shadow:0 1px 2px rgba(0,0,0,.7)}
+#rack-grid .rack-face{flex:none;width:min(100%,600px);grid-template-rows:repeat(12,58px)!important}
+#rack-grid .rack-labels{grid-template-rows:repeat(12,58px)!important}
