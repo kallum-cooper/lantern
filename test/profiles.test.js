@@ -8,6 +8,9 @@ test('exposes the supported generic device profiles', () => {
   assert.ok(validProfile('unifi-switch-24'));
   assert.ok(validProfile('dell-server-1u'));
   assert.ok(validProfile('synology-nas-2u'));
+  assert.ok(validProfile('unifi-switch-48'));
+  assert.ok(validProfile('unifi-udm-pro'));
+  assert.ok(validProfile('unifi-uxg-pro'));
   assert.equal(validProfile('cisco-9000'), false);
   assert.ok(rackProfiles().every((profile) => profile.rackMount));
 });
