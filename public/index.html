@@ -44,6 +44,7 @@
             <section class="panel overview-rack-panel"><div class="panel-heading"><div><p class="eyebrow">PHYSICAL LAYOUT</p><h3>Rack spotlight</h3></div><select id="overview-rack-select" aria-label="Select rack"></select></div><div id="overview-rack"></div><button class="text-button overview-open-rack" data-view-link="racks">Open full rack view →</button></section>
             <div class="overview-side"><section class="panel activity-panel"><div class="panel-heading"><div><p class="eyebrow">LIVE INVENTORY</p><h3>Recently changed</h3></div><button class="text-button" data-view-link="discovery">View all →</button></div><div id="changes" class="activity-list"></div></section><section class="panel network-panel"><div class="panel-heading"><div><p class="eyebrow">NETWORK HEALTH</p><h3>Address space</h3></div><button class="text-button" data-view-link="ipam">Open IPAM →</button></div><div id="networks"></div></section></div>
           </div>
+          <section id="device-detail" class="panel device-detail" hidden></section>
         </section>
 
         <section id="view-sites" class="view"><div class="section-heading"><div><p class="eyebrow accent">HOMELAB LOCATIONS</p><h2>Sites</h2><p class="muted">Keep separate homes, offices, and cloud locations visible in one inventory.</p></div><button class="button primary" id="add-site">+ Add site</button></div><div id="sites-grid" class="sites-grid"></div><section id="site-detail" class="panel site-detail" hidden></section></section>
