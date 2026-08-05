@@ -10,7 +10,8 @@ import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
-import { validateServiceInput, serviceKey } from './src/services.js';
+import { validateServiceInput, serviceKey, mergeDiscoveredServices } from './src/services.js';
+import { checkDeviceHealth } from './src/health.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -95,6 +96,8 @@ async function scanNetwork(network) {
         description: `Observed ${result.openPorts.length} open service${result.openPorts.length === 1 ? '' : 's'}`,
         status: 'pending', discoveredAt: new Date().toISOString(),
       });
+      const device = state.devices.find((item) => state.addresses.find((addressRecord) => addressRecord.deviceId === item.id)?.ip === result.address);
+      if (device) state.services = mergeDiscoveredServices(state.services, result.openPorts.map((port) => ({ id: createId('svc'), deviceId: device.id, name: `Port ${port}`, port, protocol: 'tcp' })));
     }
   }
   const resolvedKeys = new Set(state.discoveries.filter((item) => item.status !== 'pending').map((item) => `${item.networkId}:${item.ip}`));
@@ -178,6 +181,40 @@ async function api(request, response, url) {
       return json(response, 400, { error: error.message });
     }
     return json(response, 202, { ok: true });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/health/check') {
+    const checkedAt = new Date().toISOString();
+    const results = await Promise.all(state.devices.map(async (device) => {
+      const address = state.addresses.find((item) => item.deviceId === device.id) || null;
+      const result = await checkDeviceHealth({ ...device, address }, state.services);
+      device.healthStatus = result.status;
+      device.lastCheckedAt = checkedAt;
+      device.healthError = null;
+      for (const serviceResult of result.results) {
+        const service = state.services.find((item) => item.deviceId === device.id && Number(item.port) === serviceResult.port && String(item.protocol || 'tcp') === 'tcp');
+        if (service) { service.lastCheckedAt = checkedAt; service.lastObservedOpen = serviceResult.open; }
+      }
+      return { deviceId: device.id, status: result.status };
+    }));
+    await saveState(dataPath, state);
+    return json(response, 200, { checkedAt, results });
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/devices/') && url.pathname.endsWith('/health-check')) {
+    const id = url.pathname.split('/')[3];
+    const device = state.devices.find((item) => item.id === id);
+    if (!device) return json(response, 404, { error: 'Device not found' });
+    const address = state.addresses.find((item) => item.deviceId === device.id) || null;
+    const checkedAt = new Date().toISOString();
+    const result = await checkDeviceHealth({ ...device, address }, state.services);
+    device.healthStatus = result.status;
+    device.lastCheckedAt = checkedAt;
+    device.healthError = null;
+    for (const serviceResult of result.results) {
+      const service = state.services.find((item) => item.deviceId === device.id && Number(item.port) === serviceResult.port && String(item.protocol || 'tcp') === 'tcp');
+      if (service) { service.lastCheckedAt = checkedAt; service.lastObservedOpen = serviceResult.open; }
+    }
+    await saveState(dataPath, state);
+    return json(response, 200, { deviceId: device.id, status: result.status, checkedAt, results: result.results });
   }
   if (request.method === 'POST' && url.pathname === '/api/networks') {
     const input = await body(request);
