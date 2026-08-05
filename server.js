@@ -7,7 +7,7 @@ import net from 'node:net';
 import dns from 'node:dns/promises';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
-import { validateDeviceInput, normalizeDeviceType, isVirtualDevice, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
+import { validateDeviceInput, normalizeDeviceType, isVirtualDevice, normalizeRackWidth, normalizeRackPosition, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
 import { validateServiceInput, serviceKey, mergeDiscoveredServices, reconcileServiceObservations, serviceIcon } from './src/services.js';
@@ -380,10 +380,13 @@ async function api(request, response, url) {
     const deviceType = normalizeDeviceType(input.deviceType || deviceTypeForRole(input.role));
     const rack = input.rackId ? state.racks.find((item) => item.id === input.rackId) : null;
     const rackUnit = Number(input.rackUnit) || null;
+    const rackWidth = normalizeRackWidth(input.rackWidth);
+    const rackPosition = normalizeRackPosition(input.rackPosition, rackWidth);
     if (input.rackId && isVirtualDevice({ deviceType })) return json(response, 400, { error: 'Virtual machines and containers cannot be placed in a physical rack' });
     if (input.rackId && !rack) return json(response, 404, { error: 'Rack not found' });
+    if (rackWidth === 'half' && details.height !== 1) return json(response, 400, { error: 'Half-width devices must occupy exactly 1U' });
     if (rack && rackUnit && (rackUnit < 1 || rackUnit + details.height - 1 > rack.height)) return json(response, 400, { error: 'Device does not fit in that rack position' });
-    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height)) return json(response, 409, { error: 'Those rack units are already occupied' });
+    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height, null, rackWidth, rackPosition)) return json(response, 409, { error: 'That rack position is already occupied' });
     const network = input.networkId ? state.networks.find((item) => item.id === input.networkId) : null;
     if (input.networkId && !network) return json(response, 404, { error: 'Network not found' });
     if (input.ip && (!network || !isIpInCidr(input.ip, network.cidr))) return json(response, 400, { error: 'IP address is outside the selected network' });
@@ -391,7 +394,7 @@ async function api(request, response, url) {
     if (existingAddress?.deviceId) return json(response, 409, { error: 'That IP is already assigned to an existing device; edit its rack placement instead' });
     const role = input.role || 'Unassigned';
     const parentDeviceId = input.parentDeviceId && state.devices.some((item) => item.id === input.parentDeviceId) ? input.parentDeviceId : null;
-    const device = { id: createId('device'), name: details.name, role, deviceType, parentDeviceId, visualProfile: profileFor(input.visualProfile).id, topologyPosition: null, description: String(input.description || '').trim(), rackId: isVirtualDevice({ deviceType }) ? null : (input.rackId || null), rackUnit: isVirtualDevice({ deviceType }) ? null : rackUnit, height: details.height, status: 'active' };
+    const device = { id: createId('device'), name: details.name, role, deviceType, parentDeviceId, visualProfile: profileFor(input.visualProfile).id, topologyPosition: null, description: String(input.description || '').trim(), rackId: isVirtualDevice({ deviceType }) ? null : (input.rackId || null), rackUnit: isVirtualDevice({ deviceType }) ? null : rackUnit, rackWidth: isVirtualDevice({ deviceType }) ? 'full' : rackWidth, rackPosition: isVirtualDevice({ deviceType }) ? 'full' : rackPosition, height: details.height, status: 'active' };
     state.devices.push(device);
     if (input.ip && existingAddress) Object.assign(existingAddress, buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id, source: existingAddress.source || 'manual' }));
     else if (input.ip) state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id }) });
@@ -435,10 +438,13 @@ async function api(request, response, url) {
     try { details = validateDeviceInput(input); } catch (error) { return json(response, 400, { error: error.message }); }
     const rack = input.rackId ? state.racks.find((item) => item.id === input.rackId) : null;
     const rackUnit = Number(input.rackUnit) || null;
+    const rackWidth = normalizeRackWidth(input.rackWidth || device.rackWidth);
+    const rackPosition = normalizeRackPosition(input.rackPosition || device.rackPosition, rackWidth);
     if (input.rackId && isVirtualDevice({ deviceType: normalizeDeviceType(input.deviceType || device.deviceType) })) return json(response, 400, { error: 'Virtual machines and containers cannot be placed in a physical rack' });
     if (input.rackId && !rack) return json(response, 404, { error: 'Rack not found' });
+    if (rackWidth === 'half' && details.height !== 1) return json(response, 400, { error: 'Half-width devices must occupy exactly 1U' });
     if (rack && rackUnit && (rackUnit < 1 || rackUnit + details.height - 1 > rack.height)) return json(response, 400, { error: 'Device does not fit in that rack position' });
-    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height, id)) return json(response, 409, { error: 'Those rack units are already occupied' });
+    if (!rackPlacementAvailable(state.devices, input.rackId, rackUnit, details.height, id, rackWidth, rackPosition)) return json(response, 409, { error: 'That rack position is already occupied' });
     const currentAddress = state.addresses.find((address) => address.deviceId === id);
     const nextIp = String(input.ip || '').trim();
     if (nextIp) {
@@ -454,7 +460,7 @@ async function api(request, response, url) {
     try { topologyPosition = validatePosition(input.topologyPosition === undefined ? device.topologyPosition || null : input.topologyPosition); } catch (error) { return json(response, 400, { error: error.message }); }
     const nextType = normalizeDeviceType(input.deviceType || device.deviceType || deviceTypeForRole(input.role || device.role));
     const parentDeviceId = input.parentDeviceId && state.devices.some((item) => item.id === input.parentDeviceId && item.id !== id) ? input.parentDeviceId : (input.parentDeviceId === '' ? null : device.parentDeviceId || null);
-    Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: nextType, parentDeviceId, visualProfile: profileFor(input.visualProfile || device.visualProfile).id, topologyPosition: topologyPosition ? { x: Number(topologyPosition.x), y: Number(topologyPosition.y) } : null, description: String(input.description || '').trim(), rackId: isVirtualDevice({ deviceType: nextType }) ? null : (input.rackId || null), rackUnit: isVirtualDevice({ deviceType: nextType }) ? null : rackUnit, height: details.height });
+    Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: nextType, parentDeviceId, visualProfile: profileFor(input.visualProfile || device.visualProfile).id, topologyPosition: topologyPosition ? { x: Number(topologyPosition.x), y: Number(topologyPosition.y) } : null, description: String(input.description || '').trim(), rackId: isVirtualDevice({ deviceType: nextType }) ? null : (input.rackId || null), rackUnit: isVirtualDevice({ deviceType: nextType }) ? null : rackUnit, rackWidth: isVirtualDevice({ deviceType: nextType }) ? 'full' : rackWidth, rackPosition: isVirtualDevice({ deviceType: nextType }) ? 'full' : rackPosition, height: details.height });
     addChange(state, 'device', `Updated ${device.name}`);
     await saveState(dataPath, state);
     return json(response, 200, device);
@@ -468,9 +474,13 @@ async function api(request, response, url) {
     if (!Number.isInteger(targetUnit) || targetUnit < 1 || targetUnit > rack.height) return json(response, 400, { error: 'That rack unit does not exist' });
     const device = state.devices.find((item) => item.id === input.deviceId);
     if (!device) return json(response, 404, { error: 'Device not found' });
+    const targetWidth = normalizeRackWidth(input.rackWidth || device.rackWidth);
+    const targetPosition = normalizeRackPosition(input.rackPosition || device.rackPosition, targetWidth);
     const target = state.devices.find((item) => item.rackId === rackId && item.rackUnit === targetUnit && item.id !== device.id);
-    if (!target && !rackPlacementAvailable(state.devices, rackId, targetUnit, device.height, device.id)) return json(response, 409, { error: 'That device will not fit in the selected rack position' });
-    try { moveDeviceInRack(state.devices, input.deviceId, rackId, targetUnit); } catch (error) { return json(response, 409, { error: error.message }); }
+    if (targetWidth === 'half' && device.height !== 1) return json(response, 400, { error: 'Half-width devices must occupy exactly 1U' });
+    const compatibleSwap = target && device.height === 1 && target.height === 1 && targetWidth === 'full' && (target.rackWidth || 'full') === 'full';
+    if (!compatibleSwap && !rackPlacementAvailable(state.devices, rackId, targetUnit, device.height, device.id, targetWidth, targetPosition)) return json(response, 409, { error: 'That device will not fit in the selected rack position' });
+    try { moveDeviceInRack(state.devices, input.deviceId, rackId, targetUnit, targetWidth, targetPosition); } catch (error) { return json(response, 409, { error: error.message }); }
     addChange(state, 'device', `Moved a device in ${rack.name}`);
     await saveState(dataPath, state);
     return json(response, 200, { ok: true });

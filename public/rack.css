@@ -4,3 +4,9 @@
 .rack-unit span{position:absolute;right:0;top:0;bottom:0;width:min(34%,220px);display:flex;flex-direction:column;justify-content:center;background:linear-gradient(90deg,rgba(15,31,27,0),rgba(15,31,27,.86) 34%);border-radius:0;padding:3px 7px 3px 28px;color:#f4fffa;text-align:left;text-shadow:0 1px 2px rgba(0,0,0,.7)}
 #rack-grid .rack-face{flex:none;width:min(100%,600px);grid-template-rows:repeat(12,58px)!important}
 #rack-grid .rack-labels{grid-template-rows:repeat(12,58px)!important}
+.rack-unit.shared-unit{display:grid;grid-template-columns:1fr 1fr;gap:3px;background:#edf2ef;border-color:#b7c9c1;padding:2px}
+.rack-half-slot{position:relative;min-width:0;overflow:hidden;border:1px solid #8ac6a9;border-radius:3px;background:#bcdfd0;cursor:grab}
+.rack-half-slot.empty{border-style:dashed;background:rgba(247,250,248,.45);color:#83948d;font-size:9px;display:grid;place-items:center}
+.rack-half-slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;object-position:left center;pointer-events:none;filter:drop-shadow(0 2px 2px rgba(0,0,0,.22))}
+.rack-half-slot span{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:2px 4px;background:linear-gradient(transparent,rgba(15,31,27,.9));color:#f4fffa;font-size:8px;text-shadow:0 1px 2px #000}
+.rack-half-slot span small{display:block;font-size:7px}.rack-half-slot button{position:absolute;top:2px;right:2px;z-index:2;border:0;background:rgba(15,31,27,.8);color:#fff;border-radius:3px;cursor:pointer}

@@ -46,3 +46,26 @@ test('moves a rack device and swaps another 1U device when needed', () => {
   assert.equal(devices.find((device) => device.id === 'a').rackUnit, 4);
   assert.equal(devices.find((device) => device.id === 'b').rackUnit, 1);
 });
+
+test('allows two half-width devices to share one rack unit', () => {
+  const devices = [
+    { id: 'a', rackId: 'rack_1', rackUnit: 8, height: 1, rackWidth: 'half', rackPosition: 'left' },
+  ];
+  assert.equal(rackPlacementAvailable(devices, 'rack_1', 8, 1, null, 'half', 'right'), true);
+  assert.equal(rackPlacementAvailable(devices, 'rack_1', 8, 1, null, 'half', 'left'), false);
+});
+
+test('full-width devices cannot share a rack unit with anything', () => {
+  const devices = [{ id: 'a', rackId: 'rack_1', rackUnit: 8, height: 1, rackWidth: 'half', rackPosition: 'left' }];
+  assert.equal(rackPlacementAvailable(devices, 'rack_1', 8, 1, null, 'full', 'full'), false);
+});
+
+test('moves a half-width device into the free side of a shared unit', () => {
+  const devices = [
+    { id: 'a', rackId: 'rack_1', rackUnit: 8, height: 1, rackWidth: 'half', rackPosition: 'left' },
+    { id: 'b', rackId: null, rackUnit: null, height: 1, rackWidth: 'half', rackPosition: 'left' },
+  ];
+  moveDeviceInRack(devices, 'b', 'rack_1', 8, 'half', 'right');
+  assert.equal(devices.find((device) => device.id === 'b').rackPosition, 'right');
+  assert.equal(devices.find((device) => device.id === 'b').rackUnit, 8);
+});

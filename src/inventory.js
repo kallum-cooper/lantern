@@ -16,7 +16,13 @@ export function normalizeDeviceType(type = '') {
 
 export function isVirtualDevice(device = {}) { return ['vm', 'container'].includes(normalizeDeviceType(device.deviceType)); }
 
-export function rackPlacementAvailable(devices, rackId, rackUnit, height = 1, ignoreId = null) {
+export function normalizeRackWidth(value = '') { return String(value).toLowerCase() === 'half' ? 'half' : 'full'; }
+export function normalizeRackPosition(value = '', rackWidth = 'full') {
+  if (normalizeRackWidth(rackWidth) !== 'half') return 'full';
+  return ['left', 'right'].includes(String(value).toLowerCase()) ? String(value).toLowerCase() : 'left';
+}
+
+export function rackPlacementAvailable(devices, rackId, rackUnit, height = 1, ignoreId = null, rackWidth = 'full', rackPosition = 'full') {
   if (!rackId || !rackUnit) return true;
   const start = Number(rackUnit);
   const end = start + Number(height) - 1;
@@ -24,7 +30,11 @@ export function rackPlacementAvailable(devices, rackId, rackUnit, height = 1, ig
     if (device.id === ignoreId || device.rackId !== rackId || !device.rackUnit) return false;
     const otherStart = Number(device.rackUnit);
     const otherEnd = otherStart + Number(device.height || 1) - 1;
-    return start <= otherEnd && end >= otherStart;
+    if (!(start <= otherEnd && end >= otherStart)) return false;
+    const otherWidth = device.rackWidth || 'full';
+    const otherPosition = device.rackPosition || 'full';
+    if (rackWidth === 'half' && otherWidth === 'half' && start === otherStart && end === otherEnd && rackPosition !== 'full' && otherPosition !== 'full') return rackPosition === otherPosition;
+    return true;
   });
 }
 
@@ -72,10 +82,17 @@ export function removeSite(state, siteId) {
   return true;
 }
 
-export function moveDeviceInRack(devices, deviceId, rackId, rackUnit) {
+export function moveDeviceInRack(devices, deviceId, rackId, rackUnit, rackWidth = 'full', rackPosition = 'full') {
   const source = devices.find((device) => device.id === deviceId);
   if (!source) throw new Error('Device not found');
-  const target = devices.find((device) => device.rackId === rackId && device.rackUnit === Number(rackUnit) && device.id !== deviceId);
+  const target = devices.find((device) => device.rackId === rackId && device.rackUnit === Number(rackUnit) && device.id !== deviceId && !rackPlacementAvailable([device], rackId, rackUnit, source.height, source.id, rackWidth, rackPosition));
+  if (target && rackWidth === 'half' && (source.rackWidth || 'full') === 'half' && (target.rackWidth || 'full') === 'half' && source.height === 1 && target.height === 1 && rackPosition !== (target.rackPosition || 'full')) {
+    source.rackId = rackId;
+    source.rackUnit = Number(rackUnit);
+    source.rackWidth = rackWidth;
+    source.rackPosition = rackPosition;
+    return devices;
+  }
   if (target && (source.height !== 1 || target.height !== 1)) throw new Error('Only 1U devices can be swapped directly');
   if (target) {
     const oldRackId = source.rackId;
@@ -85,5 +102,7 @@ export function moveDeviceInRack(devices, deviceId, rackId, rackUnit) {
   }
   source.rackId = rackId;
   source.rackUnit = Number(rackUnit);
+  source.rackWidth = rackWidth;
+  source.rackPosition = rackPosition;
   return devices;
 }
