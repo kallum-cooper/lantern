@@ -36,7 +36,7 @@ function summary() {
     const address = state.addresses.find((item) => item.deviceId === service.deviceId) || null;
     const rack = state.racks.find((item) => item.id === device?.rackId) || null;
     const site = state.sites.find((item) => item.id === rack?.siteId) || null;
-    return { ...service, deviceName: device?.name || 'Unknown device', address, rackName: rack?.name || null, rackUnit: device?.rackUnit || null, siteName: site?.name || null };
+    return { ...service, deviceName: device?.name || 'Unknown device', address, rackId: rack?.id || null, rackName: rack?.name || null, rackUnit: device?.rackUnit || null, siteId: site?.id || null, siteName: site?.name || null };
   };
   return {
     site: state.sites[0],

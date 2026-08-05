@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="/layout.css" />
     <link rel="stylesheet" href="/rack.css" />
     <link rel="stylesheet" href="/overview.css" />
+    <link rel="stylesheet" href="/services.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -21,6 +22,7 @@
           <button class="nav-item" data-view="sites"><span>⌂</span> Sites</button>
           <button class="nav-item" data-view="ipam"><span>⌁</span> IPAM</button>
           <button class="nav-item" data-view="racks"><span>▦</span> Racks & map</button>
+          <button class="nav-item" data-view="services"><span>◈</span> Services</button>
           <button class="nav-item" data-view="discovery"><span>◎</span> Discovery <b id="nav-discovery-count">0</b></button>
         </nav>
         <div class="sidebar-bottom">
@@ -50,10 +52,12 @@
 
         <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><div class="scan-controls"><select id="rack-site-filter" aria-label="Filter racks by site"></select><button class="button secondary" id="add-rack">+ Add rack</button><button class="button primary" id="add-device-rack">+ Add device</button></div></div><div id="rack-grid" class="rack-grid"></div><div id="unplaced-devices" class="unplaced-devices"></div></section>
 
+        <section id="view-services" class="view"><div class="section-heading"><div><p class="eyebrow accent">APPLICATION INVENTORY</p><h2>Services</h2><p class="muted">Keep the things running on each host visible alongside the hardware.</p></div><div class="scan-controls"><button class="button secondary" id="check-health">◎ Check now</button><button class="button primary" id="add-service">+ Add service</button></div></div><div class="service-filters"><input id="service-search" type="search" placeholder="Search services, devices, ports…" aria-label="Search services" /><select id="service-site-filter" aria-label="Filter services by site"></select><select id="service-source-filter" aria-label="Filter services by source"><option value="all">All sources</option><option value="manual">Manual</option><option value="discovered">Discovered</option></select><select id="service-health-filter" aria-label="Filter services by health"><option value="all">All health</option><option value="online">Online</option><option value="offline">Offline</option><option value="unknown">Unknown</option><option value="pending">Pending review</option></select></div><div id="services-list" class="services-list"></div></section>
+
         <section id="view-discovery" class="view"><div class="section-heading"><div><p class="eyebrow accent">SAFE, OPT-IN SCANNING</p><h2>Discovery review</h2><p class="muted">New observations stay here until you decide they belong in your inventory.</p></div><div class="scan-controls"><select id="scan-network" aria-label="Network to scan"></select><button class="button secondary" id="scan-discovery">◎ Run scan</button></div></div><div id="discovery-list" class="discovery-list"></div></section>
       </main>
     </div>
-    <div id="resource-modal" class="modal-backdrop" hidden><form id="resource-form" class="modal-card"><div class="modal-heading"><div><p class="eyebrow accent">LOCAL INVENTORY</p><h2 id="modal-title">Add resource</h2></div><button type="button" class="modal-close" id="close-modal" aria-label="Close">×</button></div><label class="form-label">Resource type<select id="resource-type"><option value="site">Site</option><option value="rack">Rack</option><option value="network">Network</option><option value="device">Device</option></select></label><div id="resource-fields"></div><div class="modal-actions"><button type="button" class="button secondary" id="cancel-modal">Cancel</button><button type="submit" class="button primary">Create resource</button></div></form></div>
+    <div id="resource-modal" class="modal-backdrop" hidden><form id="resource-form" class="modal-card"><div class="modal-heading"><div><p class="eyebrow accent">LOCAL INVENTORY</p><h2 id="modal-title">Add resource</h2></div><button type="button" class="modal-close" id="close-modal" aria-label="Close">×</button></div><label class="form-label">Resource type<select id="resource-type"><option value="site">Site</option><option value="rack">Rack</option><option value="network">Network</option><option value="device">Device</option><option value="service">Service</option></select></label><div id="resource-fields"></div><div class="modal-actions"><button type="button" class="button secondary" id="cancel-modal">Cancel</button><button type="submit" class="button primary">Create resource</button></div></form></div>
     <div id="toast" class="toast" role="status"></div>
     <script src="/app.js" type="module"></script>
   </body>
