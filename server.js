@@ -13,6 +13,7 @@ import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/disc
 import { validateServiceInput, serviceKey, mergeDiscoveredServices } from './src/services.js';
 import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
+import { validatePosition, validateGroupInput, validateLinkInput, linkKey } from './src/topology.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -113,6 +114,65 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
   if (request.method === 'GET' && url.pathname === '/api/services') return json(response, 200, summary().services);
+  if (request.method === 'GET' && url.pathname === '/api/topology') {
+    const devices = state.devices.map((device) => ({ ...device, address: state.addresses.find((item) => item.deviceId === device.id) || null, serviceCount: state.services.filter((service) => service.deviceId === device.id && service.status !== 'ignored').length }));
+    return json(response, 200, { devices, groups: state.topologyGroups, links: state.topologyLinks });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/topology/groups') {
+    let details;
+    try { details = validateGroupInput(await body(request)); } catch (error) { return json(response, 400, { error: error.message }); }
+    const group = { id: createId('group'), ...details };
+    state.topologyGroups.push(group);
+    addChange(state, 'topology', `Added topology group ${group.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, group);
+  }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/topology/groups/')) {
+    const id = url.pathname.split('/')[4];
+    const group = state.topologyGroups.find((item) => item.id === id);
+    if (!group) return json(response, 404, { error: 'Topology group not found' });
+    let details;
+    try { details = validateGroupInput({ ...group, ...(await body(request)) }); } catch (error) { return json(response, 400, { error: error.message }); }
+    Object.assign(group, details);
+    await saveState(dataPath, state);
+    return json(response, 200, group);
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/topology/groups/')) {
+    const id = url.pathname.split('/')[4];
+    const index = state.topologyGroups.findIndex((item) => item.id === id);
+    if (index === -1) return json(response, 404, { error: 'Topology group not found' });
+    state.topologyGroups.splice(index, 1);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/topology/links') {
+    let details;
+    try { details = validateLinkInput(await body(request), state.devices); } catch (error) { return json(response, 400, { error: error.message }); }
+    if (state.topologyLinks.some((link) => linkKey(link) === linkKey(details))) return json(response, 409, { error: 'Those devices are already linked' });
+    const link = { id: createId('link'), ...details };
+    state.topologyLinks.push(link);
+    await saveState(dataPath, state);
+    return json(response, 201, link);
+  }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/topology/links/')) {
+    const id = url.pathname.split('/')[4];
+    const link = state.topologyLinks.find((item) => item.id === id);
+    if (!link) return json(response, 404, { error: 'Topology link not found' });
+    let details;
+    try { details = validateLinkInput({ ...link, ...(await body(request)) }, state.devices); } catch (error) { return json(response, 400, { error: error.message }); }
+    if (state.topologyLinks.some((item) => item.id !== id && linkKey(item) === linkKey(details))) return json(response, 409, { error: 'Those devices are already linked' });
+    Object.assign(link, details);
+    await saveState(dataPath, state);
+    return json(response, 200, link);
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/topology/links/')) {
+    const id = url.pathname.split('/')[4];
+    const index = state.topologyLinks.findIndex((item) => item.id === id);
+    if (index === -1) return json(response, 404, { error: 'Topology link not found' });
+    state.topologyLinks.splice(index, 1);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
   if (request.method === 'GET' && url.pathname.startsWith('/api/sites/')) {
     const siteId = url.pathname.split('/')[3];
     const site = state.sites.find((item) => item.id === siteId);
@@ -380,8 +440,8 @@ async function api(request, response, url) {
       else state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: nextIp, hostname: input.hostname || details.name, description: input.description, deviceId: id }) });
     } else if (currentAddress) state.addresses = state.addresses.filter((address) => address.id !== currentAddress.id);
     if (input.visualProfile && !validProfile(input.visualProfile)) return json(response, 400, { error: 'Unknown device visual profile' });
-    const topologyPosition = input.topologyPosition === null || input.topologyPosition === undefined ? device.topologyPosition || null : input.topologyPosition;
-    if (topologyPosition && (!Number.isFinite(Number(topologyPosition.x)) || !Number.isFinite(Number(topologyPosition.y)))) return json(response, 400, { error: 'Topology position must contain finite x and y values' });
+    let topologyPosition;
+    try { topologyPosition = validatePosition(input.topologyPosition === undefined ? device.topologyPosition || null : input.topologyPosition); } catch (error) { return json(response, 400, { error: error.message }); }
     Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: input.deviceType || device.deviceType || deviceTypeForRole(input.role || device.role), visualProfile: profileFor(input.visualProfile || device.visualProfile).id, topologyPosition: topologyPosition ? { x: Number(topologyPosition.x), y: Number(topologyPosition.y) } : null, description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height });
     addChange(state, 'device', `Updated ${device.name}`);
     await saveState(dataPath, state);
