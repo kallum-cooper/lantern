@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="/rack.css" />
     <link rel="stylesheet" href="/overview.css" />
     <link rel="stylesheet" href="/services.css" />
+    <link rel="stylesheet" href="/topology.css" />
   </head>
   <body>
     <div class="app-shell">
@@ -23,6 +24,7 @@
           <button class="nav-item" data-view="ipam"><span>⌁</span> IPAM</button>
           <button class="nav-item" data-view="racks"><span>▦</span> Racks & map</button>
           <button class="nav-item" data-view="services"><span>◈</span> Services</button>
+          <button class="nav-item" data-view="topology"><span>⌘</span> Topology</button>
           <button class="nav-item" data-view="discovery"><span>◎</span> Discovery <b id="nav-discovery-count">0</b></button>
         </nav>
         <div class="sidebar-bottom">
@@ -54,6 +56,8 @@
         <section id="view-racks" class="view"><div class="section-heading"><div><p class="eyebrow accent">PHYSICAL INVENTORY</p><h2>Racks & map</h2><p class="muted">A lightweight 2D view of where your hardware actually lives.</p></div><div class="scan-controls"><select id="rack-site-filter" aria-label="Filter racks by site"></select><button class="button secondary" id="add-rack">+ Add rack</button><button class="button primary" id="add-device-rack">+ Add device</button></div></div><div id="rack-grid" class="rack-grid"></div><div id="unplaced-devices" class="unplaced-devices"></div></section>
 
         <section id="view-services" class="view"><div class="section-heading"><div><p class="eyebrow accent">APPLICATION INVENTORY</p><h2>Services</h2><p class="muted">Keep the things running on each host visible alongside the hardware.</p></div><div class="scan-controls"><button class="button secondary" id="check-health">◎ Check now</button><button class="button primary" id="add-service">+ Add service</button></div></div><div class="service-filters"><input id="service-search" type="search" placeholder="Search services, devices, ports…" aria-label="Search services" /><select id="service-site-filter" aria-label="Filter services by site"></select><select id="service-source-filter" aria-label="Filter services by source"><option value="all">All sources</option><option value="manual">Manual</option><option value="discovered">Discovered</option></select><select id="service-health-filter" aria-label="Filter services by health"><option value="all">All health</option><option value="online">Online</option><option value="offline">Offline</option><option value="unknown">Unknown</option><option value="pending">Pending review</option></select></div><div id="services-list" class="services-list"></div></section>
+
+        <section id="view-topology" class="view"><div class="section-heading"><div><p class="eyebrow accent">VISUAL NETWORK MAP</p><h2>Topology</h2><p class="muted">Arrange devices, groups, and connections into a map of how your lab fits together.</p></div><div class="scan-controls"><button class="button secondary" id="topology-add-group">+ Add group</button><button class="button primary" id="topology-add-link">+ Add connection</button></div></div><div class="topology-toolbar"><button class="button secondary" id="topology-zoom-out">−</button><span id="topology-zoom-label">100%</span><button class="button secondary" id="topology-zoom-in">+</button><button class="button secondary" id="topology-reset">Reset view</button></div><div class="topology-shell"><aside id="topology-tray" class="topology-tray"></aside><div id="topology-viewport" class="topology-viewport"><div id="topology-canvas" class="topology-canvas"><svg id="topology-links" class="topology-links"></svg><div id="topology-groups"></div><div id="topology-nodes"></div></div></div></div></section>
 
         <section id="view-discovery" class="view"><div class="section-heading"><div><p class="eyebrow accent">SAFE, OPT-IN SCANNING</p><h2>Discovery review</h2><p class="muted">New observations stay here until you decide they belong in your inventory.</p></div><div class="scan-controls"><select id="scan-network" aria-label="Network to scan"></select><button class="button secondary" id="scan-discovery">◎ Run scan</button></div></div><div id="discovery-list" class="discovery-list"></div></section>
       </main>
