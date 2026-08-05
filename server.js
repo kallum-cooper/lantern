@@ -7,7 +7,7 @@ import net from 'node:net';
 import dns from 'node:dns/promises';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
-import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from './src/inventory.js';
+import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
 import { validateServiceInput, serviceKey, mergeDiscoveredServices } from './src/services.js';
@@ -334,8 +334,26 @@ async function api(request, response, url) {
     const id = url.pathname.split('/')[3];
     const device = state.devices.find((item) => item.id === id);
     if (!device) return json(response, 404, { error: 'Device not found' });
-    removeDevice(state, id);
-    addChange(state, 'device', `Removed ${device.name}; linked IP records released`);
+    removeDeviceCompletely(state, id);
+    addChange(state, 'device', `Removed ${device.name}; linked inventory released`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/racks/')) {
+    const id = url.pathname.split('/')[3];
+    const rack = state.racks.find((item) => item.id === id);
+    if (!rack) return json(response, 404, { error: 'Rack not found' });
+    if (!removeRack(state, id)) return json(response, 409, { error: 'Remove or unplace the devices in this rack first' });
+    addChange(state, 'rack', `Removed ${rack.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/sites/')) {
+    const id = url.pathname.split('/')[3];
+    const site = state.sites.find((item) => item.id === id);
+    if (!site) return json(response, 404, { error: 'Site not found' });
+    if (!removeSite(state, id)) return json(response, 409, { error: 'Remove or reassign this site\'s racks and networks first' });
+    addChange(state, 'site', `Removed ${site.name}`);
     await saveState(dataPath, state);
     return json(response, 200, { ok: true });
   }

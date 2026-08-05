@@ -39,6 +39,29 @@ export function removeDevice(state, deviceId) {
   return state;
 }
 
+export function removeDeviceCompletely(state, deviceId) {
+  removeDevice(state, deviceId);
+  state.services = (state.services || []).filter((service) => service.deviceId !== deviceId);
+  state.topologyLinks = (state.topologyLinks || []).filter((link) => link.sourceDeviceId !== deviceId && link.targetDeviceId !== deviceId);
+  return state;
+}
+
+export function removeRack(state, rackId) {
+  if (state.devices.some((device) => device.rackId === rackId)) return false;
+  const index = state.racks.findIndex((rack) => rack.id === rackId);
+  if (index === -1) return false;
+  state.racks.splice(index, 1);
+  return true;
+}
+
+export function removeSite(state, siteId) {
+  if (state.racks.some((rack) => rack.siteId === siteId) || state.networks.some((network) => network.siteId === siteId)) return false;
+  const index = state.sites.findIndex((site) => site.id === siteId);
+  if (index === -1) return false;
+  state.sites.splice(index, 1);
+  return true;
+}
+
 export function moveDeviceInRack(devices, deviceId, rackId, rackUnit) {
   const source = devices.find((device) => device.id === deviceId);
   if (!source) throw new Error('Device not found');
