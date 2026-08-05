@@ -4,3 +4,4 @@
 .overview-rack-slot img{object-fit:contain}
 .overview-rack-slot img{object-fit:cover;object-position:center}
 .overview-rack-slot img{object-fit:contain;object-position:center}
+.overview-side .panel{flex:1;min-height:0}.overview-side .network-panel{margin-top:0}.overview-grid~.activity-panel{margin-top:22px}.overview-grid~.device-detail{margin-top:22px}
