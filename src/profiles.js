@@ -3,6 +3,8 @@ export const DEVICE_PROFILES = [
   { id: 'dell-server-1u', label: 'Dell-style 1U server', brand: 'Dell', asset: 'rack-dell-1u.png', height: 1, rackMount: true, passive: false },
   { id: 'hpe-server-1u', label: 'HPE-style 1U server', brand: 'HPE', asset: 'rack-hpe-1u.png', height: 1, rackMount: true, passive: false },
   { id: 'lenovo-server-1u', label: 'Lenovo-style 1U server', brand: 'Lenovo', asset: 'rack-lenovo-1u.png', height: 1, rackMount: true, passive: false },
+  { id: 'dell-optiplex-micro', label: 'Dell OptiPlex Micro (half-width)', brand: 'Dell', asset: 'rack-dell-optiplex-micro.svg', height: 1, rackMount: true, passive: false, defaultRackWidth: 'half' },
+  { id: 'lenovo-thinkcentre-tiny', label: 'Lenovo ThinkCentre Tiny (half-width)', brand: 'Lenovo', asset: 'rack-lenovo-thinkcentre-tiny.svg', height: 1, rackMount: true, passive: false, defaultRackWidth: 'half' },
   { id: 'generic-2u', label: 'Generic 2U server', brand: 'Generic', asset: 'rack-generic-2u.png', height: 2, rackMount: true, passive: false },
   { id: 'unifi-switch-24', label: 'Ubiquiti UniFi USW-24', brand: 'Ubiquiti', asset: 'rack-unifi-usw-24.png', height: 1, rackMount: true, passive: false },
   { id: 'unifi-switch-48', label: 'Ubiquiti UniFi USW-48', brand: 'Ubiquiti', asset: 'rack-unifi-usw-48.png', height: 1, rackMount: true, passive: false },

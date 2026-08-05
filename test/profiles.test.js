@@ -11,6 +11,8 @@ test('exposes the supported generic device profiles', () => {
   assert.ok(validProfile('unifi-switch-48'));
   assert.ok(validProfile('unifi-udm-pro'));
   assert.ok(validProfile('unifi-uxg-pro'));
+  assert.equal(profileFor('dell-optiplex-micro').defaultRackWidth, 'half');
+  assert.equal(profileFor('lenovo-thinkcentre-tiny').defaultRackWidth, 'half');
   assert.equal(validProfile('cisco-9000'), false);
   assert.ok(rackProfiles().every((profile) => profile.rackMount));
 });

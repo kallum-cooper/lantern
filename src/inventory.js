@@ -67,7 +67,16 @@ export function removeDeviceCompletely(state, deviceId) {
 }
 
 export function removeRack(state, rackId) {
-  if (state.devices.some((device) => device.rackId === rackId)) return false;
+  const placedDevices = state.devices.filter((device) => device.rackId === rackId && Number(device.rackUnit) > 0);
+  if (placedDevices.length) return false;
+  // Older records could retain a rackId after being visually unplaced. Clean
+  // those stale references while removing the otherwise empty rack.
+  state.devices.filter((device) => device.rackId === rackId).forEach((device) => {
+    device.rackId = null;
+    device.rackUnit = null;
+    device.rackWidth = 'full';
+    device.rackPosition = 'full';
+  });
   const index = state.racks.findIndex((rack) => rack.id === rackId);
   if (index === -1) return false;
   state.racks.splice(index, 1);

@@ -17,9 +17,10 @@ test('complete device removal cleans linked inventory and topology records', () 
 });
 
 test('rack and site removal report whether relationships block deletion', () => {
-  const state = { racks: [{ id: 'rack_1', siteId: 'site_1' }, { id: 'rack_2', siteId: 'site_2' }], devices: [{ rackId: 'rack_1' }], sites: [{ id: 'site_1' }, { id: 'site_2' }], networks: [{ siteId: 'site_1' }] };
+  const state = { racks: [{ id: 'rack_1', siteId: 'site_1' }, { id: 'rack_2', siteId: 'site_2' }], devices: [{ rackId: 'rack_1', rackUnit: 1 }, { id: 'stale', rackId: 'rack_2', rackUnit: null }], sites: [{ id: 'site_1' }, { id: 'site_2' }], networks: [{ siteId: 'site_1' }] };
   assert.equal(removeRack(state, 'rack_1'), false);
   assert.equal(removeRack(state, 'rack_2'), true);
+  assert.equal(state.devices.find((device) => device.id === 'stale').rackId, null);
   assert.equal(removeSite(state, 'site_1'), false);
   assert.equal(removeSite(state, 'site_2'), true);
   assert.equal(state.racks.length, 1);

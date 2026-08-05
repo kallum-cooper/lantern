@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 150" role="img" aria-label="Lenovo ThinkCentre Tiny front panel">
+  <defs><linearGradient id="l" x2="0" y2="1"><stop stop-color="#3c4547"/><stop offset=".5" stop-color="#151a1c"/><stop offset="1" stop-color="#2b3335"/></linearGradient></defs>
+  <rect x="3" y="4" width="894" height="142" rx="7" fill="url(#l)" stroke="#687578" stroke-width="5"/>
+  <rect x="27" y="26" width="44" height="98" rx="3" fill="#101516" stroke="#889396" stroke-width="2"/><circle cx="49" cy="49" r="10" fill="#111" stroke="#b7c0c2"/><circle cx="49" cy="49" r="5" fill="#65d99b"/><rect x="35" y="77" width="28" height="26" rx="2" fill="#070a0a" stroke="#697578"/><path d="M42 87h14M42 94h14" stroke="#789092" stroke-width="3"/>
+  <text x="125" y="85" font-family="Arial,sans-serif" font-size="31" font-weight="700" fill="#e8edee">ThinkCentre</text><text x="125" y="113" font-family="Arial,sans-serif" font-size="16" fill="#aeb8ba">M70q Tiny</text>
+  <rect x="642" y="37" width="72" height="56" rx="3" fill="#080b0c" stroke="#899497"/><rect x="727" y="37" width="72" height="56" rx="3" fill="#080b0c" stroke="#899497"/><rect x="812" y="37" width="58" height="56" rx="3" fill="#080b0c" stroke="#899497"/><path d="M654 50h48M654 63h48M739 50h48M739 63h48" stroke="#5b686a" stroke-width="4"/><circle cx="842" cy="112" r="5" fill="#68d99e"/>
+  <path d="M105 23h500M105 129h500" stroke="#5c686b" stroke-width="2" opacity=".7"/>
+</svg>
