@@ -14,6 +14,7 @@ import { validateServiceInput, serviceKey, mergeDiscoveredServices, reconcileSer
 import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
 import { validatePosition, validateGroupInput, validateLinkInput, linkKey } from './src/topology.js';
+import { normalizeCloudImport, mergeCloudImport } from './src/cloud.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -59,6 +60,8 @@ function summary() {
     devices: state.devices.map((device) => ({ ...device, deviceType: normalizeDeviceType(device.deviceType), host: state.devices.find((host) => host.id === device.parentDeviceId) || null, childCount: state.devices.filter((child) => child.parentDeviceId === device.id).length, address: state.addresses.find((address) => address.deviceId === device.id) || null })),
     addresses: state.addresses,
     services: state.services.map(serviceContext),
+    cloudSites: state.cloudSites || [],
+    cloudResources: state.cloudResources || [],
     discoveries: state.discoveries,
     changes: state.changes,
   };
@@ -118,6 +121,14 @@ async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
   if (request.method === 'GET' && url.pathname === '/api/services') return json(response, 200, summary().services);
+  if (request.method === 'GET' && url.pathname === '/api/cloud/summary') return json(response, 200, { sites: state.cloudSites || [], resources: state.cloudResources || [], counts: { sites: (state.cloudSites || []).length, resources: (state.cloudResources || []).length, providers: new Set((state.cloudResources || []).map((resource) => resource.provider)).size, regions: new Set((state.cloudResources || []).map((resource) => `${resource.provider}:${resource.accountId}:${resource.region}`)).size } });
+  if (request.method === 'POST' && url.pathname === '/api/cloud/import') {
+    const normalized = normalizeCloudImport(await body(request));
+    const merged = mergeCloudImport(state, normalized);
+    addChange(state, 'cloud', `Imported ${normalized.resources.length} cloud resource${normalized.resources.length === 1 ? '' : 's'}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { errors: normalized.errors, counts: { ...normalized.counts, ...merged } });
+  }
   if (request.method === 'GET' && url.pathname === '/api/topology') {
     const devices = state.devices.map((device) => ({ ...device, address: state.addresses.find((item) => item.deviceId === device.id) || null, serviceCount: state.services.filter((service) => service.deviceId === device.id && service.status !== 'ignored').length }));
     return json(response, 200, { devices, groups: state.topologyGroups, links: state.topologyLinks });

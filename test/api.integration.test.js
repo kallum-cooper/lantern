@@ -52,3 +52,18 @@ test('creates and deletes a device with its linked IP through the API', async ()
   assert.equal(afterDelete.devices.some((device) => device.id === created.id), false);
   assert.equal(afterDelete.addresses.some((address) => address.deviceId === created.id), false);
 });
+
+test('imports cloud resources, updates them on re-import, and reports invalid rows', async () => {
+  const first = await fetch(`${baseUrl}/api/cloud/import`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ records: [{ provider: 'aws', accountId: '123', accountName: 'Production', region: 'eu-west-2', resourceType: 'ec2', resourceId: 'i-cloud-1', name: 'cloud-web', status: 'running' }, { provider: 'aws', region: 'eu-west-2', resourceType: 'rds', resourceId: 'db-invalid' }] }) });
+  assert.equal(first.status, 200);
+  const firstResult = await first.json();
+  assert.deepEqual(firstResult.counts, { valid: 1, invalid: 1, created: 1, updated: 0 });
+
+  const second = await fetch(`${baseUrl}/api/cloud/import`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ records: [{ provider: 'aws', accountId: '123', accountName: 'Production', region: 'eu-west-2', resourceType: 'ec2', resourceId: 'i-cloud-1', name: 'cloud-web-renamed', status: 'stopped' }] }) });
+  assert.equal(second.status, 200);
+  const secondResult = await second.json();
+  assert.deepEqual(secondResult.counts, { valid: 1, invalid: 0, created: 0, updated: 1 });
+  const summary = await (await fetch(`${baseUrl}/api/cloud/summary`)).json();
+  assert.equal(summary.sites.length, 1);
+  assert.equal(summary.resources[0].name, 'cloud-web-renamed');
+});

@@ -11,6 +11,8 @@ export const emptyState = {
   services: [],
   topologyGroups: [],
   topologyLinks: [],
+  cloudSites: [],
+  cloudResources: [],
   discoveries: [],
   changes: [],
 };
