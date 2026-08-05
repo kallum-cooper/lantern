@@ -317,7 +317,7 @@ async function api(request, response, url) {
     try { details = validateServiceInput({ ...service, ...input }); } catch (error) { return json(response, 400, { error: error.message }); }
     if (!state.devices.some((device) => device.id === details.deviceId)) return json(response, 404, { error: 'Device not found' });
     if (state.services.some((item) => item.id !== id && serviceKey(item) === serviceKey(details))) return json(response, 409, { error: 'That port is already recorded for this device' });
-    Object.assign(service, details, { overviewVisible: input.overviewVisible === undefined ? service.overviewVisible === true : details.overviewVisible, icon: serviceIcon(details) });
+    Object.assign(service, details, { overviewVisible: input.overviewVisible === undefined ? service.overviewVisible === true : details.overviewVisible, topologyVisible: input.topologyVisible === undefined ? service.topologyVisible !== false : details.topologyVisible, icon: serviceIcon(details) });
     addChange(state, 'service', `Updated ${service.name}`);
     await saveState(dataPath, state);
     return json(response, 200, service);

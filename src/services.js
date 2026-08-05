@@ -13,6 +13,7 @@ export function validateServiceInput(input = {}) {
     description: String(input.description || '').trim(),
     enabled: input.enabled === false || input.enabled === 'false' ? false : true,
     overviewVisible: input.overviewVisible === true || input.overviewVisible === 'true',
+    topologyVisible: input.topologyVisible === undefined ? true : input.topologyVisible === true || input.topologyVisible === 'true',
   };
 }
 
@@ -41,7 +42,7 @@ export function mergeDiscoveredServices(existing = [], discovered = []) {
     if (!normalized.deviceId || !Number.isInteger(normalized.port) || normalized.protocol !== 'tcp') continue;
     const key = serviceKey(normalized);
     if (keys.has(key)) continue;
-    result.push({ ...normalized, id: normalized.id, source: 'discovered', status: 'pending', enabled: true, url: '', description: normalized.description || '', icon: serviceIcon(normalized) });
+    result.push({ ...normalized, id: normalized.id, source: 'discovered', status: 'pending', enabled: true, topologyVisible: true, url: '', description: normalized.description || '', icon: serviceIcon(normalized) });
     keys.add(key);
   }
   return result;

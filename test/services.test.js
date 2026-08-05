@@ -4,7 +4,7 @@ import { validateServiceInput, serviceKey, mergeDiscoveredServices, reconcileSer
 
 test('validates and normalizes a service', () => {
   assert.deepEqual(validateServiceInput({ name: '  Jellyfin ', deviceId: 'device_1', port: '8096', url: 'http://media.local' }), {
-    name: 'Jellyfin', deviceId: 'device_1', port: 8096, protocol: 'tcp', url: 'http://media.local', description: '', enabled: true, overviewVisible: false,
+    name: 'Jellyfin', deviceId: 'device_1', port: 8096, protocol: 'tcp', url: 'http://media.local', description: '', enabled: true, overviewVisible: false, topologyVisible: true,
   });
 });
 
@@ -55,4 +55,6 @@ test('reconciles open ports without replacing manual service metadata', () => {
 test('normalizes whether a service appears on the overview', () => {
   assert.equal(validateServiceInput({ name: 'Docker', deviceId: 'device_1', port: 2375, overviewVisible: true }).overviewVisible, true);
   assert.equal(validateServiceInput({ name: 'Docker', deviceId: 'device_1', port: 2375, overviewVisible: false }).overviewVisible, false);
+  assert.equal(validateServiceInput({ name: 'Docker', deviceId: 'device_1', port: 2375 }).topologyVisible, true);
+  assert.equal(validateServiceInput({ name: 'Docker', deviceId: 'device_1', port: 2375, topologyVisible: false }).topologyVisible, false);
 });
