@@ -1,4 +1,4 @@
-const serviceNames = new Map([[22, 'SSH'], [53, 'DNS'], [80, 'HTTP'], [443, 'HTTPS'], [445, 'SMB'], [3389, 'RDP'], [8080, 'HTTP-alt']]);
+const serviceNames = new Map([[22, 'SSH'], [53, 'DNS'], [80, 'HTTP'], [443, 'HTTPS'], [445, 'SMB'], [3000, 'Web app'], [3389, 'RDP'], [5000, 'Registry / app'], [8000, 'Web app'], [8080, 'HTTP-alt'], [8081, 'Web app'], [8443, 'HTTPS-alt'], [9000, 'Portainer / app'], [9090, 'Metrics / app'], [9443, 'HTTPS-alt']]);
 
 export function classifyServices(ports = []) {
   return ports.filter((port) => serviceNames.has(Number(port))).map((port) => serviceNames.get(Number(port)));

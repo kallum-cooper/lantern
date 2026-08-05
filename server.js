@@ -59,7 +59,7 @@ async function scanNetwork(network) {
   const discoveries = [];
   const addresses = usableIps(network.cidr);
   const candidates = addresses.filter((address) => isIpInCidr(address, network.cidr));
-  const commonPorts = [22, 80, 443, 445, 3389, 8080];
+  const commonPorts = [22, 53, 80, 443, 445, 3000, 3389, 5000, 8000, 8080, 8081, 8443, 9000, 9090, 9443];
   const reverseHostname = async (address) => { try { return (await dns.reverse(address))[0] || ''; } catch { return ''; } };
   const probe = (address, port) => new Promise((resolve) => {
     const socket = net.createConnection({ host: address, port });
