@@ -17,4 +17,6 @@ test('validates links and detects endpoint duplicates', () => {
   assert.equal(linkKey(link), 'a:b');
   assert.throws(() => validateLinkInput({ sourceDeviceId: 'a', targetDeviceId: 'a' }, devices), /different devices/);
   assert.throws(() => validateLinkInput({ sourceDeviceId: 'a', targetDeviceId: 'missing' }, devices), /must exist/);
+  const groupLink = validateLinkInput({ sourceDeviceId: 'a', targetDeviceId: 'group:g1' }, devices, [{ id: 'g1' }]);
+  assert.equal(groupLink.targetDeviceId, 'group:g1');
 });

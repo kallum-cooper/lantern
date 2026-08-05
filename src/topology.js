@@ -15,11 +15,12 @@ export function validateGroupInput(input = {}) {
   return { name, ...position, width, height, color: String(input.color || '#243b5c').trim() };
 }
 
-export function validateLinkInput(input = {}, devices = []) {
+export function validateLinkInput(input = {}, devices = [], groups = []) {
   const sourceDeviceId = String(input.sourceDeviceId || '').trim();
   const targetDeviceId = String(input.targetDeviceId || '').trim();
-  if (!sourceDeviceId || !targetDeviceId || sourceDeviceId === targetDeviceId) throw new Error('A link needs two different devices');
-  if (!devices.some((device) => device.id === sourceDeviceId) || !devices.some((device) => device.id === targetDeviceId)) throw new Error('Both linked devices must exist');
+  const endpoints = new Set([...devices.map((device) => device.id), ...groups.map((group) => `group:${group.id}`)]);
+  if (!sourceDeviceId || !targetDeviceId || sourceDeviceId === targetDeviceId) throw new Error('A link needs two different devices or groups');
+  if (!endpoints.has(sourceDeviceId) || !endpoints.has(targetDeviceId)) throw new Error('Both linked devices or groups must exist');
   const direction = ['none', 'forward', 'backward'].includes(input.direction) ? input.direction : 'none';
   return { sourceDeviceId, targetDeviceId, label: String(input.label || '').trim(), direction };
 }

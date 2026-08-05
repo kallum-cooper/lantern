@@ -19,6 +19,19 @@ export function serviceKey(service) {
   return `${service.deviceId}:${String(service.protocol || 'tcp').toLowerCase()}:${Number(service.port)}`;
 }
 
+export function serviceIcon(service = {}) {
+  const text = `${service.name || ''} ${service.description || ''}`.toLowerCase();
+  if (text.includes('docker')) return '🐳';
+  if (text.includes('traefik')) return '🔀';
+  if (text.includes('adguard')) return '🛡';
+  if (text.includes('jellyfin')) return '▶';
+  if (text.includes('portainer')) return '⚓';
+  if (text.includes('plex')) return '▸';
+  if (Number(service.port) === 53) return '⌁';
+  if ([80, 443, 8080, 8443].includes(Number(service.port))) return '◉';
+  return '◇';
+}
+
 export function mergeDiscoveredServices(existing = [], discovered = []) {
   const result = [...existing];
   const keys = new Set(result.map(serviceKey));
@@ -27,10 +40,18 @@ export function mergeDiscoveredServices(existing = [], discovered = []) {
     if (!normalized.deviceId || !Number.isInteger(normalized.port) || normalized.protocol !== 'tcp') continue;
     const key = serviceKey(normalized);
     if (keys.has(key)) continue;
-    result.push({ ...normalized, id: normalized.id, source: 'discovered', status: 'pending', enabled: true, url: '', description: normalized.description || '' });
+    result.push({ ...normalized, id: normalized.id, source: 'discovered', status: 'pending', enabled: true, url: '', description: normalized.description || '', icon: serviceIcon(normalized) });
     keys.add(key);
   }
   return result;
+}
+
+export function reconcileServiceObservations(existing = [], deviceId, ports = [], now = new Date().toISOString()) {
+  const observed = new Set(ports.map(Number));
+  const updated = existing.map((service) => service.deviceId === deviceId && observed.has(Number(service.port))
+    ? { ...service, lastObservedOpen: true, lastCheckedAt: now, icon: service.icon || serviceIcon(service) }
+    : service);
+  return mergeDiscoveredServices(updated, ports.map((port) => ({ id: `discovered-${deviceId}-${port}`, deviceId, name: `Port ${port}`, port, protocol: 'tcp' })));
 }
 
 export function portsForDevice(device, services = []) {

@@ -10,7 +10,7 @@ import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
-import { validateServiceInput, serviceKey, mergeDiscoveredServices } from './src/services.js';
+import { validateServiceInput, serviceKey, mergeDiscoveredServices, reconcileServiceObservations, serviceIcon } from './src/services.js';
 import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
 import { validatePosition, validateGroupInput, validateLinkInput, linkKey } from './src/topology.js';
@@ -38,7 +38,7 @@ function summary() {
     const address = state.addresses.find((item) => item.deviceId === service.deviceId) || null;
     const rack = state.racks.find((item) => item.id === device?.rackId) || null;
     const site = state.sites.find((item) => item.id === rack?.siteId) || null;
-    return { ...service, deviceName: device?.name || 'Unknown device', address, rackId: rack?.id || null, rackName: rack?.name || null, rackUnit: device?.rackUnit || null, siteId: site?.id || null, siteName: site?.name || null };
+    return { ...service, icon: service.icon || serviceIcon(service), deviceName: device?.name || 'Unknown device', address, rackId: rack?.id || null, rackName: rack?.name || null, rackUnit: device?.rackUnit || null, siteId: site?.id || null, siteName: site?.name || null };
   };
   return {
     site: state.sites[0],
@@ -71,7 +71,7 @@ async function scanNetwork(network) {
   const discoveries = [];
   const addresses = usableIps(network.cidr);
   const candidates = addresses.filter((address) => isIpInCidr(address, network.cidr));
-  const commonPorts = [22, 53, 80, 443, 445, 3000, 3389, 5000, 8000, 8080, 8081, 8443, 9000, 9090, 9443];
+  const commonPorts = [22, 53, 80, 443, 445, 3000, 3001, 3389, 5000, 5001, 5678, 7000, 7474, 8000, 8080, 8081, 8123, 8181, 8443, 9000, 9090, 9091, 9100, 9443, 10000, 11434];
   const reverseHostname = async (address) => { try { return (await dns.reverse(address))[0] || ''; } catch { return ''; } };
   const probe = (address, port) => new Promise((resolve) => {
     const socket = net.createConnection({ host: address, port });
@@ -84,22 +84,28 @@ async function scanNetwork(network) {
   for (let offset = 0; offset < candidates.length; offset += 16) {
     const batch = candidates.slice(offset, offset + 16);
     const found = await Promise.all(batch.map(async (address) => {
-      const openPorts = [];
-      for (const port of commonPorts) if (await probe(address, port)) openPorts.push(port);
+      const openPorts = (await Promise.all(commonPorts.map(async (port) => (await probe(address, port)) ? port : null))).filter(Boolean);
       return openPorts.length || localAddresses.includes(address) ? { address, openPorts } : null;
     }));
     for (const result of found.filter(Boolean)) {
       const hostname = localAddresses.includes(result.address) ? os.hostname() : await reverseHostname(result.address);
       const role = inferDeviceRole(result.openPorts, hostname);
-      discoveries.push({
+      const device = state.devices.find((item) => state.addresses.find((addressRecord) => addressRecord.deviceId === item.id)?.ip === result.address);
+      const now = new Date().toISOString();
+      if (device) {
+        const address = state.addresses.find((item) => item.deviceId === device.id);
+        if (address && (!address.hostname || address.source === 'discovery') && hostname) address.hostname = hostname;
+        device.healthStatus = result.openPorts.length ? 'online' : 'offline';
+        device.lastCheckedAt = now;
+        device.healthError = null;
+        state.services = reconcileServiceObservations(state.services, device.id, result.openPorts, now);
+      } else discoveries.push({
         id: createId('discovery'), networkId: network.id, ip: result.address,
         hostname, vendor: localAddresses.includes(result.address) ? 'Local interface' : 'Unidentified',
         ports: result.openPorts, services: classifyServices(result.openPorts), role, deviceType: deviceTypeForRole(role),
         description: `Observed ${result.openPorts.length} open service${result.openPorts.length === 1 ? '' : 's'}`,
-        status: 'pending', discoveredAt: new Date().toISOString(),
+        status: 'pending', discoveredAt: now,
       });
-      const device = state.devices.find((item) => state.addresses.find((addressRecord) => addressRecord.deviceId === item.id)?.ip === result.address);
-      if (device) state.services = mergeDiscoveredServices(state.services, result.openPorts.map((port) => ({ id: createId('svc'), deviceId: device.id, name: `Port ${port}`, port, protocol: 'tcp' })));
     }
   }
   const resolvedKeys = new Set(state.discoveries.filter((item) => item.status !== 'pending').map((item) => `${item.networkId}:${item.ip}`));
@@ -147,7 +153,7 @@ async function api(request, response, url) {
   }
   if (request.method === 'POST' && url.pathname === '/api/topology/links') {
     let details;
-    try { details = validateLinkInput(await body(request), state.devices); } catch (error) { return json(response, 400, { error: error.message }); }
+    try { details = validateLinkInput(await body(request), state.devices, state.topologyGroups); } catch (error) { return json(response, 400, { error: error.message }); }
     if (state.topologyLinks.some((link) => linkKey(link) === linkKey(details))) return json(response, 409, { error: 'Those devices are already linked' });
     const link = { id: createId('link'), ...details };
     state.topologyLinks.push(link);
@@ -159,7 +165,7 @@ async function api(request, response, url) {
     const link = state.topologyLinks.find((item) => item.id === id);
     if (!link) return json(response, 404, { error: 'Topology link not found' });
     let details;
-    try { details = validateLinkInput({ ...link, ...(await body(request)) }, state.devices); } catch (error) { return json(response, 400, { error: error.message }); }
+    try { details = validateLinkInput({ ...link, ...(await body(request)) }, state.devices, state.topologyGroups); } catch (error) { return json(response, 400, { error: error.message }); }
     if (state.topologyLinks.some((item) => item.id !== id && linkKey(item) === linkKey(details))) return json(response, 409, { error: 'Those devices are already linked' });
     Object.assign(link, details);
     await saveState(dataPath, state);
@@ -296,7 +302,7 @@ async function api(request, response, url) {
     try { details = validateServiceInput(input); } catch (error) { return json(response, 400, { error: error.message }); }
     if (!state.devices.some((device) => device.id === details.deviceId)) return json(response, 404, { error: 'Device not found' });
     if (state.services.some((service) => serviceKey(service) === serviceKey(details))) return json(response, 409, { error: 'That port is already recorded for this device' });
-    const service = { id: createId('svc'), ...details, source: 'manual', status: 'active', lastCheckedAt: null, lastObservedOpen: null };
+    const service = { id: createId('svc'), ...details, icon: serviceIcon(details), source: 'manual', status: 'active', lastCheckedAt: null, lastObservedOpen: null };
     state.services.push(service);
     addChange(state, 'service', `Added ${service.name}`);
     await saveState(dataPath, state);
@@ -311,7 +317,7 @@ async function api(request, response, url) {
     try { details = validateServiceInput({ ...service, ...input }); } catch (error) { return json(response, 400, { error: error.message }); }
     if (!state.devices.some((device) => device.id === details.deviceId)) return json(response, 404, { error: 'Device not found' });
     if (state.services.some((item) => item.id !== id && serviceKey(item) === serviceKey(details))) return json(response, 409, { error: 'That port is already recorded for this device' });
-    Object.assign(service, details);
+    Object.assign(service, details, { icon: serviceIcon(details) });
     addChange(state, 'service', `Updated ${service.name}`);
     await saveState(dataPath, state);
     return json(response, 200, service);
