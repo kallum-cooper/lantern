@@ -28,3 +28,14 @@ test('round-trips service health fields through a backup', () => {
   const state = { sites: [], networks: [], racks: [], devices: [{ id: 'device_1' }], addresses: [], services: [{ id: 'svc_1', deviceId: 'device_1', port: 8080, source: 'manual', status: 'active', lastObservedOpen: true }], discoveries: [], changes: [] };
   assert.deepEqual(validateImport(exportPayload(state)).services, state.services);
 });
+
+test('round-trips visual profiles and topology state through a backup', () => {
+  const state = {
+    sites: [], networks: [], racks: [], devices: [{ id: 'device_1', visualProfile: 'switch-48', topologyPosition: { x: 40, y: 80 } }], addresses: [], services: [],
+    topologyGroups: [{ id: 'group_1', name: 'Core', x: 0, y: 0, width: 420, height: 260, color: '#243b5c' }], topologyLinks: [{ id: 'link_1', sourceDeviceId: 'device_1', targetDeviceId: 'device_2', label: 'LAN', direction: 'none' }], discoveries: [], changes: [],
+  };
+  const restored = validateImport(exportPayload(state));
+  assert.deepEqual(restored.devices[0].topologyPosition, { x: 40, y: 80 });
+  assert.deepEqual(restored.topologyGroups, state.topologyGroups);
+  assert.deepEqual(restored.topologyLinks, state.topologyLinks);
+});
