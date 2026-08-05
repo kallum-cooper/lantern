@@ -67,3 +67,18 @@ test('imports cloud resources, updates them on re-import, and reports invalid ro
   assert.equal(summary.sites.length, 1);
   assert.equal(summary.resources[0].name, 'cloud-web-renamed');
 });
+
+test('promotes an imported EC2 resource once into a normal device', async () => {
+  await fetch(`${baseUrl}/api/cloud/import`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ records: [{ provider: 'aws', accountId: '999', region: 'us-east-1', resourceType: 'ec2', resourceId: 'i-promote-1', name: 'promote-me', status: 'running', privateIp: '10.0.0.10' }] }) });
+  const cloudSummary = await (await fetch(`${baseUrl}/api/cloud/summary`)).json();
+  const resource = cloudSummary.resources.find((item) => item.resourceId === 'i-promote-1');
+  const first = await fetch(`${baseUrl}/api/cloud/resources/${resource.id}/promote`, { method: 'POST' });
+  assert.equal(first.status, 201);
+  const firstDevice = await first.json();
+  const second = await fetch(`${baseUrl}/api/cloud/resources/${resource.id}/promote`, { method: 'POST' });
+  assert.equal(second.status, 200);
+  const secondDevice = await second.json();
+  assert.equal(secondDevice.id, firstDevice.id);
+  const summary = await (await fetch(`${baseUrl}/api/summary`)).json();
+  assert.equal(summary.devices.filter((device) => device.id === firstDevice.id).length, 1);
+});

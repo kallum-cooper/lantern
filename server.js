@@ -129,6 +129,28 @@ async function api(request, response, url) {
     await saveState(dataPath, state);
     return json(response, 200, { errors: normalized.errors, counts: { ...normalized.counts, ...merged } });
   }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/cloud/resources/') && url.pathname.endsWith('/promote')) {
+    const resourceId = url.pathname.split('/')[4];
+    const resource = (state.cloudResources || []).find((item) => item.id === resourceId);
+    if (!resource) return json(response, 404, { error: 'Cloud resource not found' });
+    if (resource.promotedDeviceId) {
+      const existing = state.devices.find((device) => device.id === resource.promotedDeviceId);
+      if (existing) return json(response, 200, existing);
+      resource.promotedDeviceId = null;
+    }
+    if (resource.resourceType !== 'EC2') return json(response, 400, { error: 'Only EC2 resources can be added to the normal inventory yet' });
+    const device = {
+      id: createId('device'), name: resource.name, role: 'Cloud server', deviceType: 'server', parentDeviceId: null,
+      visualProfile: 'generic-1u', topologyPosition: null,
+      description: `Imported from ${resource.provider.toUpperCase()} ${resource.accountId} · ${resource.region}${resource.privateIp ? ` · private IP ${resource.privateIp}` : ''}${resource.publicIp ? ` · public IP ${resource.publicIp}` : ''}`,
+      rackId: null, rackUnit: null, rackWidth: 'full', rackPosition: 'full', height: 1, status: 'active',
+    };
+    state.devices.push(device);
+    resource.promotedDeviceId = device.id;
+    addChange(state, 'device', `Added ${device.name} from cloud inventory`);
+    await saveState(dataPath, state);
+    return json(response, 201, device);
+  }
   if (request.method === 'GET' && url.pathname === '/api/topology') {
     const devices = state.devices.map((device) => ({ ...device, address: state.addresses.find((item) => item.deviceId === device.id) || null, serviceCount: state.services.filter((service) => service.deviceId === device.id && service.status !== 'ignored').length }));
     return json(response, 200, { devices, groups: state.topologyGroups, links: state.topologyLinks });
