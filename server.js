@@ -88,7 +88,10 @@ async function scanNetwork(network) {
       });
     }
   }
-  state.discoveries = [...discoveries, ...state.discoveries];
+  const resolvedKeys = new Set(state.discoveries.filter((item) => item.status !== 'pending').map((item) => `${item.networkId}:${item.ip}`));
+  const pendingKeys = new Set();
+  const fresh = discoveries.filter((item) => { const key = `${item.networkId}:${item.ip}`; if (resolvedKeys.has(key) || pendingKeys.has(key)) return false; pendingKeys.add(key); return true; });
+  state.discoveries = [...fresh, ...state.discoveries];
   addChange(state, 'scan', `Scan completed for ${network.name}`);
   await saveState(dataPath, state);
 }
@@ -96,6 +99,13 @@ async function scanNetwork(network) {
 async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
+  if (request.method === 'GET' && url.pathname.startsWith('/api/sites/')) {
+    const siteId = url.pathname.split('/')[3];
+    const site = state.sites.find((item) => item.id === siteId);
+    if (!site) return json(response, 404, { error: 'Site not found' });
+    const racks = state.racks.filter((rack) => rack.siteId === siteId).map((rack) => ({ ...rack, devices: state.devices.filter((device) => device.rackId === rack.id).map((device) => ({ ...device, address: state.addresses.find((address) => address.deviceId === device.id) || null })) }));
+    return json(response, 200, { site, racks, networks: state.networks.filter((network) => network.siteId === siteId), devices: state.devices.filter((device) => racks.some((rack) => rack.devices.some((candidate) => candidate.id === device.id))) });
+  }
   if (request.method === 'GET' && url.pathname === '/api/export') {
     response.writeHead(200, { 'content-type': 'application/json; charset=utf-8', 'content-disposition': 'attachment; filename="lantern-backup.json"' });
     return response.end(JSON.stringify(exportPayload(state), null, 2));
@@ -259,9 +269,11 @@ async function api(request, response, url) {
     if (!discovery) return json(response, 404, { error: 'Discovery not found' });
     const input = await body(request);
     const device = { id: createId('device'), name: input.name?.trim() || discovery.hostname || discovery.ip, role: input.role || discovery.role || 'Discovered device', deviceType: discovery.deviceType || 'server', description: discovery.description || '', rackId: input.rackId || null, rackUnit: Number(input.rackUnit) || null, height: 1, status: 'active' };
-    if (addressAlreadyAllocated(state.addresses, discovery.ip)) return json(response, 409, { error: 'That IP is already assigned; merge this observation instead' });
+    const existingAddress = state.addresses.find((address) => address.ip === discovery.ip);
+    if (existingAddress?.deviceId) return json(response, 409, { error: 'That IP is already assigned; merge this observation instead', existingDeviceId: existingAddress.deviceId });
     state.devices.push(device);
-    state.addresses.push({ id: createId('ip'), networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, description: discovery.description || '', deviceId: device.id, source: 'discovery' });
+    if (existingAddress) Object.assign(existingAddress, { networkId: discovery.networkId, hostname: device.name, description: discovery.description || existingAddress.description || '', deviceId: device.id, source: existingAddress.source || 'discovery' });
+    else state.addresses.push({ id: createId('ip'), networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, description: discovery.description || '', deviceId: device.id, source: 'discovery' });
     discovery.status = 'confirmed';
     addChange(state, 'device', `Confirmed ${device.name} from discovery`);
     await saveState(dataPath, state);
@@ -283,8 +295,10 @@ async function api(request, response, url) {
     const input = await body(request);
     const device = state.devices.find((item) => item.id === input.deviceId);
     if (!device) return json(response, 404, { error: 'Device not found' });
-    if (addressAlreadyAllocated(state.addresses, discovery.ip)) return json(response, 409, { error: 'That IP is already assigned' });
-    state.addresses.push(buildAddress({ networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, deviceId: device.id, source: 'discovery' }));
+    const existingAddress = state.addresses.find((address) => address.ip === discovery.ip);
+    if (existingAddress?.deviceId && existingAddress.deviceId !== device.id) return json(response, 409, { error: 'That IP is already assigned to another device' });
+    if (existingAddress) Object.assign(existingAddress, { networkId: discovery.networkId, hostname: device.name, deviceId: device.id, source: existingAddress.source || 'discovery' });
+    else state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: discovery.networkId, ip: discovery.ip, hostname: device.name, deviceId: device.id, source: 'discovery' }) });
     discovery.status = 'merged';
     addChange(state, 'discovery', `Merged ${discovery.ip} into ${device.name}`);
     await saveState(dataPath, state);
