@@ -12,6 +12,7 @@ import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
 import { validateServiceInput, serviceKey, mergeDiscoveredServices } from './src/services.js';
 import { checkDeviceHealth } from './src/health.js';
+import { profileFor, validProfile } from './src/profiles.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -321,7 +322,7 @@ async function api(request, response, url) {
     const existingAddress = input.ip ? state.addresses.find((address) => address.ip === input.ip) : null;
     if (existingAddress?.deviceId) return json(response, 409, { error: 'That IP is already assigned to an existing device; edit its rack placement instead' });
     const role = input.role || 'Unassigned';
-    const device = { id: createId('device'), name: details.name, role, deviceType: input.deviceType || deviceTypeForRole(role), description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height, status: 'active' };
+    const device = { id: createId('device'), name: details.name, role, deviceType: input.deviceType || deviceTypeForRole(role), visualProfile: profileFor(input.visualProfile).id, topologyPosition: null, description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height, status: 'active' };
     state.devices.push(device);
     if (input.ip && existingAddress) Object.assign(existingAddress, buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id, source: existingAddress.source || 'manual' }));
     else if (input.ip) state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: input.ip, hostname: input.hostname || device.name, description: input.description, deviceId: device.id }) });
@@ -360,7 +361,10 @@ async function api(request, response, url) {
       if (currentAddress) Object.assign(currentAddress, buildAddress({ networkId: network.id, ip: nextIp, hostname: input.hostname || details.name, description: input.description, deviceId: id, source: currentAddress.source || 'manual' }));
       else state.addresses.push({ id: createId('ip'), ...buildAddress({ networkId: network.id, ip: nextIp, hostname: input.hostname || details.name, description: input.description, deviceId: id }) });
     } else if (currentAddress) state.addresses = state.addresses.filter((address) => address.id !== currentAddress.id);
-    Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: input.deviceType || device.deviceType || deviceTypeForRole(input.role || device.role), description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height });
+    if (input.visualProfile && !validProfile(input.visualProfile)) return json(response, 400, { error: 'Unknown device visual profile' });
+    const topologyPosition = input.topologyPosition === null || input.topologyPosition === undefined ? device.topologyPosition || null : input.topologyPosition;
+    if (topologyPosition && (!Number.isFinite(Number(topologyPosition.x)) || !Number.isFinite(Number(topologyPosition.y)))) return json(response, 400, { error: 'Topology position must contain finite x and y values' });
+    Object.assign(device, { name: details.name, role: input.role || device.role, deviceType: input.deviceType || device.deviceType || deviceTypeForRole(input.role || device.role), visualProfile: profileFor(input.visualProfile || device.visualProfile).id, topologyPosition: topologyPosition ? { x: Number(topologyPosition.x), y: Number(topologyPosition.y) } : null, description: String(input.description || '').trim(), rackId: input.rackId || null, rackUnit, height: details.height });
     addChange(state, 'device', `Updated ${device.name}`);
     await saveState(dataPath, state);
     return json(response, 200, device);

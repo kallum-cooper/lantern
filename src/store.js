@@ -9,6 +9,8 @@ export const emptyState = {
   devices: [],
   addresses: [],
   services: [],
+  topologyGroups: [],
+  topologyLinks: [],
   discoveries: [],
   changes: [],
 };
