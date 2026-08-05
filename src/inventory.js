@@ -38,3 +38,19 @@ export function removeDevice(state, deviceId) {
   state.addresses = state.addresses.filter((address) => address.deviceId !== deviceId);
   return state;
 }
+
+export function moveDeviceInRack(devices, deviceId, rackId, rackUnit) {
+  const source = devices.find((device) => device.id === deviceId);
+  if (!source) throw new Error('Device not found');
+  const target = devices.find((device) => device.rackId === rackId && device.rackUnit === Number(rackUnit) && device.id !== deviceId);
+  if (target && (source.height !== 1 || target.height !== 1)) throw new Error('Only 1U devices can be swapped directly');
+  if (target) {
+    const oldRackId = source.rackId;
+    const oldRackUnit = source.rackUnit;
+    target.rackId = oldRackId;
+    target.rackUnit = oldRackUnit;
+  }
+  source.rackId = rackId;
+  source.rackUnit = Number(rackUnit);
+  return devices;
+}

@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice } from '../src/inventory.js';
+import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from '../src/inventory.js';
 
 test('requires a device name and normalises its rack height', () => {
   assert.deepEqual(validateDeviceInput({ name: '  Router  ', height: '2' }), { name: 'Router', height: 2 });
@@ -30,4 +30,11 @@ test('removes a device and its linked address records', () => {
   removeDevice(state, 'device_1');
   assert.deepEqual(state.devices, [{ id: 'device_2' }]);
   assert.deepEqual(state.addresses, [{ id: 'ip_2', deviceId: 'device_2' }]);
+});
+
+test('moves a rack device and swaps another 1U device when needed', () => {
+  const devices = [{ id: 'a', rackId: 'rack_1', rackUnit: 1, height: 1 }, { id: 'b', rackId: 'rack_1', rackUnit: 4, height: 1 }];
+  moveDeviceInRack(devices, 'a', 'rack_1', 4);
+  assert.equal(devices.find((device) => device.id === 'a').rackUnit, 4);
+  assert.equal(devices.find((device) => device.id === 'b').rackUnit, 1);
 });

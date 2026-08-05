@@ -7,7 +7,7 @@ import net from 'node:net';
 import dns from 'node:dns/promises';
 import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
-import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice } from './src/inventory.js';
+import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
 
@@ -262,6 +262,22 @@ async function api(request, response, url) {
     addChange(state, 'device', `Updated ${device.name}`);
     await saveState(dataPath, state);
     return json(response, 200, device);
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/racks/') && url.pathname.endsWith('/move')) {
+    const rackId = url.pathname.split('/')[3];
+    const rack = state.racks.find((item) => item.id === rackId);
+    if (!rack) return json(response, 404, { error: 'Rack not found' });
+    const input = await body(request);
+    const targetUnit = Number(input.targetUnit);
+    if (!Number.isInteger(targetUnit) || targetUnit < 1 || targetUnit > rack.height) return json(response, 400, { error: 'That rack unit does not exist' });
+    const device = state.devices.find((item) => item.id === input.deviceId);
+    if (!device) return json(response, 404, { error: 'Device not found' });
+    const target = state.devices.find((item) => item.rackId === rackId && item.rackUnit === targetUnit && item.id !== device.id);
+    if (!target && !rackPlacementAvailable(state.devices, rackId, targetUnit, device.height, device.id)) return json(response, 409, { error: 'That device will not fit in the selected rack position' });
+    try { moveDeviceInRack(state.devices, input.deviceId, rackId, targetUnit); } catch (error) { return json(response, 409, { error: error.message }); }
+    addChange(state, 'device', `Moved a device in ${rack.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
   }
   if (request.method === 'POST' && url.pathname.startsWith('/api/discoveries/') && url.pathname.endsWith('/confirm')) {
     const id = url.pathname.split('/')[3];
