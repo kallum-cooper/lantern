@@ -255,6 +255,26 @@ async function api(request, response, url) {
     await saveState(dataPath, state);
     return json(response, 200, service);
   }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/services/') && url.pathname.endsWith('/adopt')) {
+    const id = url.pathname.split('/')[3];
+    const service = state.services.find((item) => item.id === id);
+    if (!service) return json(response, 404, { error: 'Service not found' });
+    service.source = 'manual';
+    service.status = 'active';
+    addChange(state, 'service', `Adopted ${service.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, service);
+  }
+  if (request.method === 'POST' && url.pathname.startsWith('/api/services/') && url.pathname.endsWith('/ignore')) {
+    const id = url.pathname.split('/')[3];
+    const service = state.services.find((item) => item.id === id);
+    if (!service) return json(response, 404, { error: 'Service not found' });
+    service.status = 'ignored';
+    service.enabled = false;
+    addChange(state, 'service', `Ignored ${service.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, service);
+  }
   if (request.method === 'DELETE' && url.pathname.startsWith('/api/services/')) {
     const id = url.pathname.split('/')[3];
     const index = state.services.findIndex((item) => item.id === id);

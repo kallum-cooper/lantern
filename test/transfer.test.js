@@ -23,3 +23,8 @@ test('keeps service data in backups and backfills it for older backups', () => {
   delete older.state.services;
   assert.deepEqual(validateImport(older).services, []);
 });
+
+test('round-trips service health fields through a backup', () => {
+  const state = { sites: [], networks: [], racks: [], devices: [{ id: 'device_1' }], addresses: [], services: [{ id: 'svc_1', deviceId: 'device_1', port: 8080, source: 'manual', status: 'active', lastObservedOpen: true }], discoveries: [], changes: [] };
+  assert.deepEqual(validateImport(exportPayload(state)).services, state.services);
+});
