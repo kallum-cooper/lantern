@@ -10,6 +10,7 @@ import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
 import { classifyServices, inferDeviceRole, deviceTypeForRole } from './src/discovery.js';
+import { validateServiceInput, serviceKey } from './src/services.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -29,6 +30,13 @@ async function body(request) {
 }
 
 function summary() {
+  const serviceContext = (service) => {
+    const device = state.devices.find((item) => item.id === service.deviceId);
+    const address = state.addresses.find((item) => item.deviceId === service.deviceId) || null;
+    const rack = state.racks.find((item) => item.id === device?.rackId) || null;
+    const site = state.sites.find((item) => item.id === rack?.siteId) || null;
+    return { ...service, deviceName: device?.name || 'Unknown device', address, rackName: rack?.name || null, rackUnit: device?.rackUnit || null, siteName: site?.name || null };
+  };
   return {
     site: state.sites[0],
     sites: state.sites.map((site) => ({ ...site, rackCount: state.racks.filter((rack) => rack.siteId === site.id).length, deviceCount: state.devices.filter((device) => state.racks.some((rack) => rack.id === device.rackId && rack.siteId === site.id)).length, networkCount: state.networks.filter((network) => network.siteId === site.id).length })),
@@ -47,6 +55,7 @@ function summary() {
     racks: state.racks.map((rack) => ({ ...rack, devices: state.devices.filter((device) => device.rackId === rack.id).map((device) => ({ ...device, address: state.addresses.find((address) => address.deviceId === device.id) || null })) })),
     devices: state.devices.map((device) => ({ ...device, address: state.addresses.find((address) => address.deviceId === device.id) || null })),
     addresses: state.addresses,
+    services: state.services.map(serviceContext),
     discoveries: state.discoveries,
     changes: state.changes,
   };
@@ -99,6 +108,7 @@ async function scanNetwork(network) {
 async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
+  if (request.method === 'GET' && url.pathname === '/api/services') return json(response, 200, summary().services);
   if (request.method === 'GET' && url.pathname.startsWith('/api/sites/')) {
     const siteId = url.pathname.split('/')[3];
     const site = state.sites.find((item) => item.id === siteId);
@@ -181,6 +191,41 @@ async function api(request, response, url) {
     addChange(state, 'network', `Added ${network.name} (${details.network}/${details.prefix})`);
     await saveState(dataPath, state);
     return json(response, 201, network);
+  }
+  if (request.method === 'POST' && url.pathname === '/api/services') {
+    const input = await body(request);
+    let details;
+    try { details = validateServiceInput(input); } catch (error) { return json(response, 400, { error: error.message }); }
+    if (!state.devices.some((device) => device.id === details.deviceId)) return json(response, 404, { error: 'Device not found' });
+    if (state.services.some((service) => serviceKey(service) === serviceKey(details))) return json(response, 409, { error: 'That port is already recorded for this device' });
+    const service = { id: createId('svc'), ...details, source: 'manual', status: 'active', lastCheckedAt: null, lastObservedOpen: null };
+    state.services.push(service);
+    addChange(state, 'service', `Added ${service.name}`);
+    await saveState(dataPath, state);
+    return json(response, 201, service);
+  }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/services/')) {
+    const id = url.pathname.split('/')[3];
+    const service = state.services.find((item) => item.id === id);
+    if (!service) return json(response, 404, { error: 'Service not found' });
+    const input = await body(request);
+    let details;
+    try { details = validateServiceInput({ ...service, ...input }); } catch (error) { return json(response, 400, { error: error.message }); }
+    if (!state.devices.some((device) => device.id === details.deviceId)) return json(response, 404, { error: 'Device not found' });
+    if (state.services.some((item) => item.id !== id && serviceKey(item) === serviceKey(details))) return json(response, 409, { error: 'That port is already recorded for this device' });
+    Object.assign(service, details);
+    addChange(state, 'service', `Updated ${service.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, service);
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/services/')) {
+    const id = url.pathname.split('/')[3];
+    const index = state.services.findIndex((item) => item.id === id);
+    if (index === -1) return json(response, 404, { error: 'Service not found' });
+    const [service] = state.services.splice(index, 1);
+    addChange(state, 'service', `Removed ${service.name}`);
+    await saveState(dataPath, state);
+    return json(response, 200, { ok: true });
   }
   if (request.method === 'POST' && url.pathname === '/api/sites') {
     const input = await body(request);

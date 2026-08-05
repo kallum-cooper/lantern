@@ -8,6 +8,7 @@ export const emptyState = {
   racks: [],
   devices: [],
   addresses: [],
+  services: [],
   discoveries: [],
   changes: [],
 };
