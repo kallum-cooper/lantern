@@ -12,6 +12,7 @@ export function validateServiceInput(input = {}) {
     url: String(input.url || '').trim(),
     description: String(input.description || '').trim(),
     enabled: input.enabled === false || input.enabled === 'false' ? false : true,
+    overviewVisible: input.overviewVisible === true || input.overviewVisible === 'true',
   };
 }
 

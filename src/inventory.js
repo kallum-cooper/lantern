@@ -6,6 +6,16 @@ export function validateDeviceInput(input = {}) {
   return { name, height };
 }
 
+export function normalizeDeviceType(type = '') {
+  const value = String(type || '').trim().toLowerCase();
+  if (['vm', 'virtual-machine', 'virtual machine', 'virtual'].includes(value)) return 'vm';
+  if (['container', 'docker', 'docker-container'].includes(value)) return 'container';
+  if (['router', 'switch', 'server', 'nas', 'ups', 'patch-panel', 'other'].includes(value)) return value;
+  return 'other';
+}
+
+export function isVirtualDevice(device = {}) { return ['vm', 'container'].includes(normalizeDeviceType(device.deviceType)); }
+
 export function rackPlacementAvailable(devices, rackId, rackUnit, height = 1, ignoreId = null) {
   if (!rackId || !rackUnit) return true;
   const start = Number(rackUnit);

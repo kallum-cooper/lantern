@@ -1,10 +1,18 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { validateDeviceInput, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from '../src/inventory.js';
+import { validateDeviceInput, normalizeDeviceType, isVirtualDevice, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, moveDeviceInRack } from '../src/inventory.js';
 
 test('requires a device name and normalises its rack height', () => {
   assert.deepEqual(validateDeviceInput({ name: '  Router  ', height: '2' }), { name: 'Router', height: 2 });
   assert.throws(() => validateDeviceInput({ name: ' ' }), /Device name is required/);
+});
+
+test('normalizes physical, VM, and container device types', () => {
+  assert.equal(normalizeDeviceType('virtual-machine'), 'vm');
+  assert.equal(normalizeDeviceType('docker'), 'container');
+  assert.equal(normalizeDeviceType('router'), 'router');
+  assert.equal(isVirtualDevice({ deviceType: 'vm' }), true);
+  assert.equal(isVirtualDevice({ deviceType: 'server' }), false);
 });
 
 test('rejects overlapping devices in rack units', () => {
