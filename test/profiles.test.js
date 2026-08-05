@@ -13,5 +13,6 @@ test('exposes the supported generic device profiles', () => {
 test('falls back to the 1U server profile', () => {
   assert.equal(profileFor('missing').id, 'generic-1u');
   assert.equal(profileFor('server-1u').id, 'generic-1u');
-  assert.equal(profileFor('patch-panel-48').asset, 'patch-panel-48.png');
+  assert.equal(profileFor('patch-panel-48').asset, 'server-face.png');
+  assert.equal(profileFor('generic-1u').asset, 'server-face.png');
 });
