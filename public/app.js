@@ -27,6 +27,7 @@ function render() {
   const { counts, networks, changes, racks, devices, discoveries, sites } = snapshot;
   ensureCloudView();
   renderCloud();
+  renderOnboarding();
   $('#nav-discovery-count').textContent = counts.discoveries;
   $('#scan-network').innerHTML = networks.map((network) => `<option value="${network.id}">${escapeHtml(network.name)} · ${escapeHtml(network.cidr)}</option>`).join('');
   renderServices();
@@ -78,6 +79,23 @@ function render() {
   bindDeviceTableDeletes();
   decorateTopologyItems();
   bindExtraTopologyHandles();
+}
+function renderOnboarding() {
+  const panel = $('#onboarding-panel');
+  if (!panel || localStorage.getItem('lantern-onboarding-dismissed') === 'true') return;
+  const scanComplete = (snapshot.changes || []).some((change) => change.type === 'scan');
+  const steps = [
+    { label: 'Create a site', done: snapshot.sites.length > 0, action: 'site' },
+    { label: 'Add a rack', done: snapshot.racks.length > 0, action: 'rack' },
+    { label: 'Track a network', done: snapshot.networks.length > 0, action: 'network' },
+    { label: 'Add your first device', done: snapshot.devices.length > 0, action: 'device' },
+    { label: 'Run a safe network scan', done: scanComplete, action: 'scan' },
+  ];
+  const next = steps.find((step) => !step.done);
+  panel.hidden = false;
+  panel.innerHTML = '<div class="onboarding-heading"><div><p class="eyebrow accent">GETTING STARTED</p><h3>' + (next ? 'Build your lab inventory' : 'Your starter setup is complete') + '</h3><p class="muted">' + (next ? 'A few small steps will make Lantern useful immediately.' : 'You can keep refining devices, services, racks, and topology.') + '</p></div><button class="text-button onboarding-dismiss">Dismiss</button></div><div class="onboarding-steps">' + steps.map((step, index) => '<div class="onboarding-step ' + (step.done ? 'done' : '') + '"><span>' + (step.done ? '✓' : index + 1) + '</span><strong>' + escapeHtml(step.label) + '</strong>' + (!step.done && step === next ? '<button class="button secondary onboarding-action" data-action="' + step.action + '">' + (step.action === 'scan' ? 'Run scan' : 'Start') + '</button>' : '') + '</div>').join('') + '</div>';
+  panel.querySelector('.onboarding-dismiss').addEventListener('click', () => { localStorage.setItem('lantern-onboarding-dismissed', 'true'); panel.hidden = true; });
+  panel.querySelector('.onboarding-action')?.addEventListener('click', (event) => { const action = event.currentTarget.dataset.action; if (action === 'scan') scan(); else openResourceModal(action); });
 }
 function serviceHealth(service) { if (service.status === 'pending') return 'pending'; if (service.lastObservedOpen === true) return 'online'; if (service.lastObservedOpen === false) return 'offline'; return 'unknown'; }
 function renderServicesLegacy() {
