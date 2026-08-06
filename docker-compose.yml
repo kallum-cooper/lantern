@@ -3,11 +3,15 @@ services:
     build: .
     container_name: lantern
     restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
     ports:
       - "4173:4173"
     environment:
       PORT: 4173
       LANTERN_DATA: /app/data/lantern.json
+      LANTERN_DATABASE_URL: postgres://lantern:lantern@db:5432/lantern
     volumes:
       - lantern-data:/app/data
     healthcheck:
@@ -17,5 +21,21 @@ services:
       retries: 3
       start_period: 5s
 
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: lantern
+      POSTGRES_USER: lantern
+      POSTGRES_PASSWORD: lantern
+    volumes:
+      - lantern-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lantern -d lantern"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
 volumes:
   lantern-data:
+  lantern-postgres:

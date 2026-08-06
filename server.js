@@ -5,7 +5,8 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import net from 'node:net';
 import dns from 'node:dns/promises';
-import { loadState, saveState, seedState, createId, addChange } from './src/store.js';
+import { seedState, createId, addChange } from './src/store.js';
+import { createPersistence } from './src/persistence.js';
 import { cidrInfo, isIpInCidr, usableIps } from './src/ipam.js';
 import { validateDeviceInput, normalizeDeviceType, isVirtualDevice, normalizeRackWidth, normalizeRackPosition, rackPlacementAvailable, buildAddress, addressAlreadyAllocated, removeDevice, removeDeviceCompletely, removeRack, removeSite, moveDeviceInRack } from './src/inventory.js';
 import { exportPayload, validateImport } from './src/transfer.js';
@@ -19,8 +20,10 @@ import { normalizeCloudImport, mergeCloudImport } from './src/cloud.js';
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
 const dataPath = process.env.LANTERN_DATA || path.join(root, 'data', 'lantern.json');
-let state = seedState(await loadState(dataPath));
-await saveState(dataPath, state);
+const persistence = await createPersistence({ filePath: dataPath });
+let state = seedState(await persistence.load());
+await persistence.save(state);
+const saveState = (_filePath, nextState) => persistence.save(nextState);
 const scanJobs = new Map();
 
 const json = (response, status, payload) => {

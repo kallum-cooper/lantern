@@ -7,6 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "test": "node --test",
-    "check": "node --check server.js && node --check src/ipam.js && node --check src/store.js"
+    "check": "node --check server.js && node --check src/ipam.js && node --check src/store.js && node --check src/persistence.js"
+  },
+  "dependencies": {
+    "pg": "^8.16.3"
   }
 }
