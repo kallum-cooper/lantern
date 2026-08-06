@@ -21,6 +21,7 @@ const port = Number(process.env.PORT || 4173);
 const dataPath = process.env.LANTERN_DATA || path.join(root, 'data', 'lantern.json');
 let state = seedState(await loadState(dataPath));
 await saveState(dataPath, state);
+const scanJobs = new Map();
 
 const json = (response, status, payload) => {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -67,13 +68,14 @@ function summary() {
   };
 }
 
-async function scanNetwork(network) {
+async function scanNetwork(network, onProgress = () => {}) {
   const info = cidrInfo(network.cidr);
   if (info.usable > 1024) throw new Error('Scan target is larger than the 1024-address safety limit');
   const localAddresses = Object.values(os.networkInterfaces()).flat().filter(Boolean).map((item) => item.address);
   const discoveries = [];
   const addresses = usableIps(network.cidr);
   const candidates = addresses.filter((address) => isIpInCidr(address, network.cidr));
+  const progress = { total: candidates.length, completed: 0, found: 0, failedBatches: 0 };
   const commonPorts = [22, 53, 80, 443, 445, 3000, 3001, 3389, 5000, 5001, 5678, 7000, 7474, 8000, 8080, 8081, 8123, 8181, 8443, 9000, 9090, 9091, 9100, 9443, 10000, 11434];
   const reverseHostname = async (address) => { try { return (await dns.reverse(address))[0] || ''; } catch { return ''; } };
   const probe = (address, port) => new Promise((resolve) => {
@@ -86,10 +88,19 @@ async function scanNetwork(network) {
   });
   for (let offset = 0; offset < candidates.length; offset += 16) {
     const batch = candidates.slice(offset, offset + 16);
-    const found = await Promise.all(batch.map(async (address) => {
-      const openPorts = (await Promise.all(commonPorts.map(async (port) => (await probe(address, port)) ? port : null))).filter(Boolean);
-      return openPorts.length || localAddresses.includes(address) ? { address, openPorts } : null;
-    }));
+    let found;
+    try {
+      found = await Promise.all(batch.map(async (address) => {
+        const openPorts = (await Promise.all(commonPorts.map(async (port) => (await probe(address, port)) ? port : null))).filter(Boolean);
+        return openPorts.length || localAddresses.includes(address) ? { address, openPorts } : null;
+      }));
+    } catch {
+      progress.failedBatches += 1;
+      found = [];
+    }
+    progress.completed += batch.length;
+    progress.found += found.filter(Boolean).length;
+    onProgress({ ...progress });
     for (const result of found.filter(Boolean)) {
       const hostname = localAddresses.includes(result.address) ? os.hostname() : await reverseHostname(result.address);
       const role = inferDeviceRole(result.openPorts, hostname);
@@ -115,6 +126,7 @@ async function scanNetwork(network) {
   state.discoveries = mergeScanDiscoveries(state.discoveries, discoveries, inventoryIps);
   addChange(state, 'scan', `Scan completed for ${network.name}`);
   await saveState(dataPath, state);
+  return progress;
 }
 
 async function api(request, response, url) {
@@ -285,12 +297,16 @@ async function api(request, response, url) {
     const input = await body(request);
     const network = state.networks.find((item) => item.id === input.networkId);
     if (!network) return json(response, 404, { error: 'Network not found' });
-    try {
-      await scanNetwork(network);
-    } catch (error) {
-      return json(response, 400, { error: error.message });
-    }
-    return json(response, 202, { ok: true });
+    const jobId = createId('scan');
+    const job = { id: jobId, networkId: network.id, networkName: network.name, status: 'running', progress: { total: 0, completed: 0, found: 0, failedBatches: 0 }, error: null, startedAt: new Date().toISOString(), completedAt: null };
+    scanJobs.set(jobId, job);
+    scanNetwork(network, (progress) => { job.progress = progress; }).then((progress) => { job.progress = progress; job.status = 'completed'; job.completedAt = new Date().toISOString(); }).catch((error) => { job.status = 'failed'; job.error = error.message; job.completedAt = new Date().toISOString(); });
+    return json(response, 202, { ok: true, jobId });
+  }
+  if (request.method === 'GET' && url.pathname.startsWith('/api/scans/')) {
+    const job = scanJobs.get(url.pathname.split('/')[3]);
+    if (!job) return json(response, 404, { error: 'Scan job not found' });
+    return json(response, 200, job);
   }
   if (request.method === 'POST' && url.pathname === '/api/health/check') {
     const checkedAt = new Date().toISOString();

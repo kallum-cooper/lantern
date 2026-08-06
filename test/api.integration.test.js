@@ -82,3 +82,21 @@ test('promotes an imported EC2 resource once into a normal device', async () => 
   const summary = await (await fetch(`${baseUrl}/api/summary`)).json();
   assert.equal(summary.devices.filter((device) => device.id === firstDevice.id).length, 1);
 });
+
+test('starts a scan job and exposes progress until it completes', async () => {
+  const networkResponse = await fetch(`${baseUrl}/api/networks`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ name: 'Small scan network', cidr: '192.168.250.0/30' }) });
+  assert.equal(networkResponse.status, 201);
+  const network = await networkResponse.json();
+  const start = await fetch(`${baseUrl}/api/scan`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ networkId: network.id }) });
+  assert.equal(start.status, 202);
+  const { jobId } = await start.json();
+  let result;
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    result = await (await fetch(`${baseUrl}/api/scans/${jobId}`)).json();
+    if (result.status === 'completed' || result.status === 'failed') break;
+    await new Promise((resolve) => setTimeout(resolve, 100));
+  }
+  assert.equal(result.status, 'completed');
+  assert.equal(result.progress.total, 2);
+  assert.equal(result.progress.completed, 2);
+});
