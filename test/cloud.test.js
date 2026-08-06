@@ -18,6 +18,15 @@ test('reports invalid records without rejecting valid records', () => {
   assert.match(result.errors[0].message, /accountId/);
 });
 
+test('accepts native AWS Resource Explorer CSV-shaped records', () => {
+  const result = normalizeCloudImport({ records: [{ Identifier: 'i-123', ARN: 'arn:aws:ec2:eu-west-2:123:instance/i-123', 'Resource type': 'ec2:instance', Region: 'eu-west-2', 'AWS account': '123', 'Tag:Name': 'web-01' }] });
+  assert.equal(result.errors.length, 0);
+  assert.equal(result.resources[0].provider, 'aws');
+  assert.equal(result.resources[0].resourceType, 'EC2');
+  assert.equal(result.resources[0].resourceId, 'arn:aws:ec2:eu-west-2:123:instance/i-123');
+  assert.equal(result.resources[0].name, 'web-01');
+});
+
 test('uses a stable provider/account/region/type/resource key', () => {
   assert.equal(cloudResourceKey({ provider: 'AWS', accountId: '123', region: 'eu-west-2', resourceType: 'ec2', resourceId: 'i-123' }), 'aws:123:eu-west-2:EC2:i-123');
 });

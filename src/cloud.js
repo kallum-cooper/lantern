@@ -1,6 +1,7 @@
 const resourceTypes = new Map([
-  ['ec2', 'EC2'], ['instance', 'EC2'], ['rds', 'RDS'], ['database', 'RDS'],
-  ['s3', 'S3'], ['bucket', 'S3'], ['load-balancer', 'Load Balancer'], ['load_balancer', 'Load Balancer'],
+  ['ec2', 'EC2'], ['instance', 'EC2'], ['ec2:instance', 'EC2'], ['rds', 'RDS'], ['database', 'RDS'], ['rds:db', 'RDS'],
+  ['s3', 'S3'], ['bucket', 'S3'], ['s3:bucket', 'S3'], ['load-balancer', 'Load Balancer'], ['load_balancer', 'Load Balancer'],
+  ['lambda:function', 'Lambda'],
   ['vpc', 'VPC'], ['subnet', 'Subnet'], ['lambda', 'Lambda'], ['eks', 'EKS'], ['cluster', 'EKS'],
 ]);
 
@@ -29,18 +30,19 @@ export function normalizeCloudImport(input = {}) {
   const errors = [];
   const siteMap = new Map();
   records.forEach((record, index) => {
-    const provider = lower(record?.provider);
-    const accountId = text(record?.accountId);
-    const region = text(record?.region);
-    const resourceType = normalizeResourceType(record?.resourceType);
-    const resourceId = text(record?.resourceId);
+    const provider = lower(record?.provider || record?.Provider || (record?.arn || record?.ARN ? 'aws' : ''));
+    const accountId = text(record?.accountId || record?.['AWS account'] || record?.awsAccount);
+    const region = text(record?.region || record?.Region || 'global');
+    const resourceType = normalizeResourceType(record?.resourceType || record?.['Resource type'] || record?.cfnResourceType);
+    const resourceId = text(record?.resourceId || record?.ARN || record?.arn || record?.identifier || record?.Identifier);
     const missing = [['provider', provider], ['accountId', accountId], ['region', region], ['resourceType', resourceType], ['resourceId', resourceId]].filter(([, value]) => !value).map(([name]) => name);
     if (missing.length) { errors.push({ row: index + 1, message: `Missing ${missing.join(', ')}` }); return; }
     const siteKey = `${provider}:${accountId}`;
     const site = siteMap.get(siteKey) || { id: `cloud:${siteKey}`, name: text(record.accountName) || `${provider.toUpperCase()} ${accountId}`, kind: 'cloud', provider, accountId, accountName: text(record.accountName), regions: [], description: '' };
     if (!site.regions.includes(region)) site.regions.push(region);
     siteMap.set(siteKey, site);
-    resources.push({ id: `cloud:${cloudResourceKey({ provider, accountId, region, resourceType, resourceId })}`, cloudSiteId: site.id, provider, accountId, accountName: text(record.accountName), region, availabilityZone: text(record.availabilityZone), resourceType, resourceId, name: text(record.name) || resourceId, status: text(record.status) || 'unknown', privateIp: text(record.privateIp), publicIp: text(record.publicIp), tags: normalizeTags(record.tags), metadata: record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata) ? record.metadata : {}, importedAt: new Date().toISOString(), promotedDeviceId: record.promotedDeviceId || null });
+    const tagName = text(record.name || record.tagName || record['Tag:Name']);
+    resources.push({ id: `cloud:${cloudResourceKey({ provider, accountId, region, resourceType, resourceId })}`, cloudSiteId: site.id, provider, accountId, accountName: text(record.accountName), region, availabilityZone: text(record.availabilityZone), resourceType, resourceId, name: tagName && tagName !== '(not tagged)' ? tagName : text(record.identifier || record.Identifier) || resourceId, status: text(record.status) || 'unknown', privateIp: text(record.privateIp), publicIp: text(record.publicIp), tags: normalizeTags(record.tags), metadata: record.metadata && typeof record.metadata === 'object' && !Array.isArray(record.metadata) ? record.metadata : {}, importedAt: new Date().toISOString(), promotedDeviceId: record.promotedDeviceId || null });
   });
   return { sites: [...siteMap.values()], resources, errors, counts: { valid: resources.length, invalid: errors.length } };
 }
