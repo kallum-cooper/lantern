@@ -29,3 +29,16 @@ test('renders the main Lantern shell and dynamic inventory views in Chrome', asy
   assert.match(stdout, /id="view-topology"/);
   assert.match(stdout, /id="view-cloud"/);
 });
+
+test('keeps login controls usable when setup-only fields are hidden', async () => {
+  const [html, authCss, appJs] = await Promise.all([
+    fetch(`${baseUrl}/`).then((response) => response.text()),
+    fetch(`${baseUrl}/auth.css`).then((response) => response.text()),
+    fetch(`${baseUrl}/app.js`).then((response) => response.text()),
+  ]);
+  assert.match(html, /name="username"[^>]*autocomplete="username"/);
+  assert.match(html, /name="password"[^>]*type="password"/);
+  assert.match(authCss, /\.auth-card \[hidden\]\{display:none!important\}/);
+  assert.match(appJs, /submit\.disabled = true/);
+  assert.match(appJs, /Could not reach Lantern/);
+});
