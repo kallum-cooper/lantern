@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/styles.css" />
     <link rel="stylesheet" href="/search.css" />
     <link rel="stylesheet" href="/theme.css" />
+    <link rel="stylesheet" href="/auth.css" />
     <link rel="stylesheet" href="/layout.css" />
     <link rel="stylesheet" href="/rack.css" />
     <link rel="stylesheet" href="/overview.css" />
@@ -15,6 +16,7 @@
     <link rel="stylesheet" href="/topology.css" />
   </head>
   <body>
+    <main id="auth-screen" class="auth-screen" hidden><form id="auth-form" class="auth-card"><div class="brand auth-brand"><span class="brand-mark">✦</span><span>lantern</span></div><p class="eyebrow accent" id="auth-eyebrow">LOCAL ACCESS</p><h1 id="auth-title">Sign in to Lantern</h1><p class="muted" id="auth-copy">Your homelab inventory is protected on this host.</p><div id="auth-fields"></div><p class="auth-error" id="auth-error" hidden></p><button class="button primary" type="submit" id="auth-submit">Sign in</button></form></main>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand"><span class="brand-mark">✦</span><span>lantern</span></div>
@@ -31,7 +33,7 @@
         </nav>
         <div class="sidebar-bottom">
           <div class="health"><span class="status-dot"></span><div><strong>Local mode</strong><small>Data stays on this host</small></div></div>
-          <div class="user-chip"><span class="avatar">KC</span><div><strong>Home lab</strong><small>Administrator</small></div><span>•••</span></div>
+          <div class="user-chip"><span class="avatar" id="current-user-avatar">KC</span><div><strong id="current-user-name">Home lab</strong><small id="current-user-role">Administrator</small></div><button class="account-menu" id="account-menu" type="button" title="Account">•••</button></div>
         </div>
       </aside>
 

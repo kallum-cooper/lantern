@@ -16,15 +16,21 @@ import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
 import { validatePosition, validateGroupInput, validateLinkInput, linkKey } from './src/topology.js';
 import { normalizeCloudImport, mergeCloudImport } from './src/cloud.js';
+import { activeSession, createSession, hashPassword, publicUser, verifyPassword } from './src/auth.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
 const dataPath = process.env.LANTERN_DATA || path.join(root, 'data', 'lantern.json');
+const authDisabled = process.env.LANTERN_AUTH_DISABLED === 'true';
 const persistence = await createPersistence({ filePath: dataPath });
 let state = seedState(await persistence.load());
 await persistence.save(state);
 const saveState = (_filePath, nextState) => persistence.save(nextState);
 const scanJobs = new Map();
+
+function requestToken(request) { return request.headers.cookie?.split(';').map((part) => part.trim()).find((part) => part.startsWith('lantern_session='))?.slice('lantern_session='.length) || ''; }
+function requestUser(request) { const session = activeSession(state.sessions, requestToken(request)); return state.users.find((user) => user.id === session?.userId) || null; }
+function setSessionCookie(response, token) { response.setHeader('set-cookie', `lantern_session=${token}; HttpOnly; SameSite=Strict; Path=/; Max-Age=2592000`); }
 
 const json = (response, status, payload) => {
   response.writeHead(status, { 'content-type': 'application/json; charset=utf-8' });
@@ -134,6 +140,50 @@ async function scanNetwork(network, onProgress = () => {}) {
 
 async function api(request, response, url) {
   if (request.method === 'GET' && url.pathname === '/api/health') return json(response, 200, { status: 'ok', service: 'lantern', data: dataPath });
+  if (request.method === 'GET' && url.pathname === '/api/auth/status') { const user = requestUser(request); return json(response, 200, { setupRequired: !authDisabled && state.users.length === 0, authenticated: authDisabled || Boolean(user), user: publicUser(user) }); }
+  if (request.method === 'POST' && url.pathname === '/api/auth/setup') {
+    if (state.users.length) return json(response, 409, { error: 'Initial setup has already been completed' });
+    const input = await body(request);
+    const username = String(input.username || '').trim().toLowerCase();
+    const displayName = String(input.displayName || username).trim();
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) return json(response, 400, { error: 'Username must be 3-32 characters and use letters, numbers, dots, underscores, or hyphens' });
+    if (String(input.password || '').length < 8) return json(response, 400, { error: 'Password must be at least 8 characters' });
+    const user = { id: createId('user'), username, displayName: displayName || username, role: 'admin', passwordHash: await hashPassword(input.password), createdAt: new Date().toISOString() };
+    const session = createSession(user.id);
+    const { token, ...storedSession } = session;
+    state.users.push(user); state.sessions.push(storedSession);
+    await saveState(dataPath, state); setSessionCookie(response, token);
+    return json(response, 201, { user: publicUser(user) });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/auth/login') {
+    const input = await body(request);
+    const user = state.users.find((item) => item.username === String(input.username || '').trim().toLowerCase());
+    if (!user || !(await verifyPassword(input.password, user.passwordHash))) return json(response, 401, { error: 'Invalid username or password' });
+    const session = createSession(user.id);
+    const { token, ...storedSession } = session;
+    state.sessions = state.sessions.filter((item) => new Date(item.expiresAt).getTime() > Date.now()); state.sessions.push(storedSession);
+    await saveState(dataPath, state); setSessionCookie(response, token);
+    return json(response, 200, { user: publicUser(user) });
+  }
+  if (request.method === 'POST' && url.pathname === '/api/auth/logout') { const token = requestToken(request); state.sessions = state.sessions.filter((session) => session.tokenHash !== Buffer.from(token).toString('base64url')); await saveState(dataPath, state); response.setHeader('set-cookie', 'lantern_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return json(response, 200, { ok: true }); }
+  const user = requestUser(request);
+  if (!authDisabled && !user) return json(response, 401, { error: 'Authentication required' });
+  if (request.method === 'GET' && url.pathname === '/api/users') return json(response, 200, state.users.map(publicUser));
+  if (request.method === 'POST' && url.pathname === '/api/users') {
+    if (user.role !== 'admin') return json(response, 403, { error: 'Administrator access required' });
+    const input = await body(request); const username = String(input.username || '').trim().toLowerCase(); const displayName = String(input.displayName || username).trim();
+    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username) || state.users.some((item) => item.username === username)) return json(response, 400, { error: 'Choose a unique username using 3-32 letters, numbers, dots, underscores, or hyphens' });
+    if (String(input.password || '').length < 8) return json(response, 400, { error: 'Password must be at least 8 characters' });
+    const created = { id: createId('user'), username, displayName: displayName || username, role: input.role === 'admin' ? 'admin' : 'member', passwordHash: await hashPassword(input.password), createdAt: new Date().toISOString() }; state.users.push(created); await saveState(dataPath, state); return json(response, 201, publicUser(created));
+  }
+  if (request.method === 'DELETE' && url.pathname.startsWith('/api/users/')) {
+    if (user.role !== 'admin') return json(response, 403, { error: 'Administrator access required' });
+    const id = url.pathname.split('/')[3];
+    if (id === user.id) return json(response, 400, { error: 'You cannot remove your own account' });
+    const target = state.users.find((item) => item.id === id);
+    if (!target) return json(response, 404, { error: 'User not found' });
+    state.users = state.users.filter((item) => item.id !== id); state.sessions = state.sessions.filter((session) => session.userId !== id); await saveState(dataPath, state); return json(response, 200, { ok: true });
+  }
   if (request.method === 'GET' && url.pathname === '/api/summary') return json(response, 200, summary());
   if (request.method === 'GET' && url.pathname === '/api/services') return json(response, 200, summary().services);
   if (request.method === 'GET' && url.pathname === '/api/cloud/summary') return json(response, 200, { sites: state.cloudSites || [], resources: state.cloudResources || [], counts: { sites: (state.cloudSites || []).length, resources: (state.cloudResources || []).length, providers: new Set((state.cloudResources || []).map((resource) => resource.provider)).size, regions: new Set((state.cloudResources || []).map((resource) => `${resource.provider}:${resource.accountId}:${resource.region}`)).size } });

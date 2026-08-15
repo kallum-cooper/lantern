@@ -13,6 +13,8 @@ export const emptyState = {
   topologyLinks: [],
   cloudSites: [],
   cloudResources: [],
+  users: [],
+  sessions: [],
   discoveries: [],
   changes: [],
 };

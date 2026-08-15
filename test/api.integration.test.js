@@ -14,7 +14,7 @@ before(async () => {
   dataDirectory = await mkdtemp(path.join(os.tmpdir(), 'lantern-api-'));
   serverProcess = spawn(process.execPath, ['server.js'], {
     cwd: process.cwd(),
-    env: { ...process.env, PORT: String(port), LANTERN_DATA: path.join(dataDirectory, 'lantern.json') },
+    env: { ...process.env, PORT: String(port), LANTERN_DATA: path.join(dataDirectory, 'lantern.json'), LANTERN_AUTH_DISABLED: 'true' },
     stdio: 'ignore',
   });
   for (let attempt = 0; attempt < 40; attempt += 1) {

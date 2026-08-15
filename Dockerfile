@@ -4,8 +4,8 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=4173
 
-COPY package.json README.md PLAN.md ./
-RUN npm install --omit=dev
+COPY package.json package-lock.json README.md PLAN.md ./
+RUN npm ci --omit=dev
 COPY src ./src
 COPY public ./public
 COPY server.js ./server.js

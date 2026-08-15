@@ -1,0 +1,8 @@
+.auth-screen{min-height:100vh;display:grid;place-items:center;padding:24px;background:var(--paper)}
+.auth-card{width:min(420px,100%);padding:34px;background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+.auth-brand{padding:0 0 34px!important}
+.auth-card h1{margin:0 0 8px;font-size:28px}.auth-card .muted{margin-bottom:24px}
+.auth-fields{display:grid;gap:12px;margin-bottom:16px}.auth-card .form-label{display:grid;gap:6px}
+.auth-card input{border:1px solid var(--line);border-radius:8px;padding:11px;background:var(--paper);color:var(--ink);font:14px system-ui,sans-serif}
+.auth-error{padding:10px;border-radius:7px;background:#fff0f0;color:#b05252;font-size:12px}.account-menu{margin-left:auto;border:0;background:transparent;color:inherit;cursor:pointer}
+.account-popover{position:fixed;left:20px;bottom:72px;z-index:20;padding:14px;background:var(--white);border:1px solid var(--line);border-radius:9px;box-shadow:var(--shadow);min-width:180px}.account-popover strong{display:block;font-size:12px;margin-bottom:10px}.account-popover button{display:block;width:100%;text-align:left;border:0;background:transparent;color:var(--ink);padding:7px 0;font-size:11px;cursor:pointer}.account-popover button:hover{color:var(--green)}
