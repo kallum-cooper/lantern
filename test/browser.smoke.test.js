@@ -38,6 +38,8 @@ test('keeps login controls usable when setup-only fields are hidden', async () =
   ]);
   assert.match(html, /name="username"[^>]*autocomplete="username"/);
   assert.match(html, /name="password"[^>]*type="password"/);
+  assert.match(html, /id="auth-form"[^>]*novalidate/);
+  assert.match(html, /id="auth-display-name"[^>]*hidden/);
   assert.match(authCss, /\.auth-card \[hidden\]\{display:none!important\}/);
   assert.match(appJs, /submit\.disabled = true/);
   assert.match(appJs, /Could not reach Lantern/);
