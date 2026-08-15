@@ -16,7 +16,7 @@
     <link rel="stylesheet" href="/topology.css" />
   </head>
   <body>
-    <main id="auth-screen" class="auth-screen" hidden><form id="auth-form" class="auth-card"><div class="brand auth-brand"><span class="brand-mark">✦</span><span>lantern</span></div><p class="eyebrow accent" id="auth-eyebrow">LOCAL ACCESS</p><h1 id="auth-title">Sign in to Lantern</h1><p class="muted" id="auth-copy">Your homelab inventory is protected on this host.</p><div id="auth-fields"></div><p class="auth-error" id="auth-error" hidden></p><button class="button primary" type="submit" id="auth-submit">Sign in</button></form></main>
+    <main id="auth-screen" class="auth-screen" hidden><form id="auth-form" class="auth-card"><div class="brand auth-brand"><span class="brand-mark">✦</span><span>lantern</span></div><p class="eyebrow accent" id="auth-eyebrow">LOCAL ACCESS</p><h1 id="auth-title">Sign in to Lantern</h1><p class="muted" id="auth-copy">Your homelab inventory is protected on this host.</p><div id="auth-fields"><label class="form-label" id="auth-display-name">Display name<input name="displayName" autocomplete="name" /></label><label class="form-label">Username<input name="username" autocomplete="username" required /></label><label class="form-label">Password<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label></div><p class="auth-error" id="auth-error" hidden></p><button class="button primary" type="submit" id="auth-submit">Sign in</button></form></main>
     <div class="app-shell">
       <aside class="sidebar">
         <div class="brand"><span class="brand-mark">✦</span><span>lantern</span></div>
