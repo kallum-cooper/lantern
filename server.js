@@ -16,7 +16,7 @@ import { checkDeviceHealth } from './src/health.js';
 import { profileFor, validProfile } from './src/profiles.js';
 import { validatePosition, validateGroupInput, validateLinkInput, linkKey } from './src/topology.js';
 import { normalizeCloudImport, mergeCloudImport } from './src/cloud.js';
-import { activeSession, createSession, hashPassword, publicUser, verifyPassword } from './src/auth.js';
+import { activeSession, createSession, hashPassword, hashToken, publicUser, verifyPassword } from './src/auth.js';
 
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
@@ -165,7 +165,7 @@ async function api(request, response, url) {
     await saveState(dataPath, state); setSessionCookie(response, token);
     return json(response, 200, { user: publicUser(user) });
   }
-  if (request.method === 'POST' && url.pathname === '/api/auth/logout') { const token = requestToken(request); state.sessions = state.sessions.filter((session) => session.tokenHash !== Buffer.from(token).toString('base64url')); await saveState(dataPath, state); response.setHeader('set-cookie', 'lantern_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return json(response, 200, { ok: true }); }
+  if (request.method === 'POST' && url.pathname === '/api/auth/logout') { const token = requestToken(request); state.sessions = state.sessions.filter((session) => session.tokenHash !== hashToken(token)); await saveState(dataPath, state); response.setHeader('set-cookie', 'lantern_session=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'); return json(response, 200, { ok: true }); }
   const user = requestUser(request);
   if (!authDisabled && !user) return json(response, 401, { error: 'Authentication required' });
   if (request.method === 'GET' && url.pathname === '/api/users') return json(response, 200, state.users.map(publicUser));

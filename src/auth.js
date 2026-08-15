@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
+import { createHash, randomBytes, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { promisify } from 'node:util';
 
 const scrypt = promisify(scryptCallback);
@@ -23,7 +23,7 @@ export function createSession(userId, now = Date.now()) {
 }
 
 export function hashToken(token) {
-  return Buffer.from(String(token)).toString('base64url');
+  return createHash('sha256').update(String(token)).digest('hex');
 }
 
 export function activeSession(sessions, token, now = Date.now()) {
