@@ -53,5 +53,6 @@ test('uses the authenticated user for the dashboard greeting and exposes setting
   assert.match(html, /data-view="settings"/);
   assert.match(html, /id="view-settings"/);
   assert.match(appJs, /authUser\?\.displayName/);
+  assert.match(appJs, /const preferredTheme = savedTheme \|\| 'dark'/);
   assert.match(appJs, /Settings/);
 });

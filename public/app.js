@@ -8,7 +8,7 @@ let topologyScale = 1;
 let authUser = null;
 const $ = (selector) => document.querySelector(selector);
 const savedTheme = localStorage.getItem('lantern-theme');
-const preferredTheme = savedTheme || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+const preferredTheme = savedTheme || 'dark';
 document.documentElement.dataset.theme = preferredTheme;
 const escapeHtml = (value) => String(value ?? '').replace(/[&<>'"]/g, (character) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#039;', '"': '&quot;' }[character]));
 const relativeTime = (date) => { const minutes = Math.max(1, Math.round((Date.now() - new Date(date)) / 60000)); return minutes < 60 ? `${minutes}m ago` : `${Math.round(minutes / 60)}h ago`; };
