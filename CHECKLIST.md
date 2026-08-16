@@ -108,7 +108,17 @@
 - [ ] Add managed update/support channels.
 - [ ] Add self-hostable cloud companion.
 - [ ] Add configurable OIDC/SSO login for supported identity providers.
+- [ ] Add mobile-friendly access and notifications.
+- [ ] Add advanced reports and webhooks.
+- [ ] Add multi-user sharing, audit history, and granular permissions.
 - [ ] Validate premium integrations and collaboration features with users.
+
+## V1 release status
+
+- [x] Release Lantern V1 as `v1.0.0`.
+- [x] Add V1 README, branding, screenshots, and MIT license.
+- [x] Make dark mode the default theme while preserving saved user preferences.
+- [x] Add local multi-user authentication with administrator settings and member roles.
 
 ## Current work
 
