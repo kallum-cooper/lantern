@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 150" role="img" aria-labelledby="title desc">
+  <title id="title">Lantern</title>
+  <desc id="desc">Lantern logo with a mint mark and wordmark</desc>
+  <rect x="8" y="8" width="134" height="134" rx="36" fill="#d8f5e8"/>
+  <path d="M75 39c-10 15-25 19-25 35 0 15 11 27 27 27s27-12 27-27c0-16-15-20-25-35-2-3-2-3-4 0Z" fill="#7ed9b1"/>
+  <path d="M77 53v39M59 73h36" stroke="#f4fff9" stroke-width="6" stroke-linecap="round"/>
+  <text x="170" y="101" fill="#d8f5e8" font-family="Arial, Helvetica, sans-serif" font-size="72" font-weight="700" letter-spacing="-3">lantern</text>
+</svg>

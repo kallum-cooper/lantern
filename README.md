@@ -1,12 +1,46 @@
-# Lantern
+<p align="center">
+  <img src="docs/images/lantern-logo.svg" alt="Lantern" width="420" />
+</p>
 
-Visual inventory for homelabs.
+<p align="center">
+  <strong>Visual inventory for homelabs.</strong><br />
+  IPAM, rack organisation, services, topology, and cloud inventory in one calm interface.
+</p>
+
+<p align="center">
+  <a href="https://github.com/kallum-cooper/lantern/releases/tag/v1.0.0"><img src="https://img.shields.io/github/v/release/kallum-cooper/lantern?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
+  <a href="https://github.com/kallum-cooper/lantern/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-62d19a?style=flat-square" alt="MIT license" /></a>
+  <a href="https://github.com/kallum-cooper/lantern"><img src="https://img.shields.io/github/stars/kallum-cooper/lantern?style=flat-square" alt="GitHub stars" /></a>
+</p>
+
+<p align="center">
+  <a href="#quick-start-with-docker-compose">Get started</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#screenshots">Screenshots</a> ·
+  <a href="#roadmap">Roadmap</a>
+</p>
+
+# Lantern
 
 Lantern is a self-hosted IPAM, rack organiser, service inventory, and topology viewer for people who want to understand their lab without running a full data-centre management platform.
 
 It is inspired by NetBox, but deliberately smaller, more visual, and easier to get running.
 
 > **V1 released** — Lantern is usable for a local homelab, but it is still an early project. Back up your data before upgrading and keep the first deployment on a trusted network.
+
+## Screenshots
+
+### Dashboard and rack spotlight
+
+![Lantern dashboard with rack spotlight and service status](docs/images/lantern-overview.png)
+
+### Rack map
+
+![Lantern rack map with rack-mounted device faceplates](docs/images/lantern-rack-spotlight.png)
+
+### Topology
+
+![Lantern topology visualisation](docs/images/lantern-topology.png)
 
 ## Features
 
@@ -212,4 +246,4 @@ npm test
 
 ## License
 
-Lantern is currently distributed without a declared open-source license. Licensing will be finalised before wider public distribution.
+Lantern is released under the [MIT License](LICENSE).
