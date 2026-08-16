@@ -32,15 +32,15 @@ It is inspired by NetBox, but deliberately smaller, more visual, and easier to g
 
 ### Dashboard and rack spotlight
 
-![Lantern dashboard with rack spotlight and service status](docs/images/lantern-overview.png)
+![Lantern dashboard with rack spotlight and service status](docs/images/v1-dashboard-full.png)
 
 ### Rack map
 
-![Lantern rack map with rack-mounted device faceplates](docs/images/lantern-rack-spotlight.png)
+![Lantern rack map with rack-mounted device faceplates](docs/images/v1-rack-map-full.png)
 
 ### Topology
 
-![Lantern topology visualisation](docs/images/lantern-topology.png)
+![Lantern topology visualisation](docs/images/v1-topology-full.png)
 
 ## Features
 
