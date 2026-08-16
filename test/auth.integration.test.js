@@ -29,8 +29,14 @@ test('sets up an admin, protects inventory, and supports separate users', async 
   assert.equal((await fetch(`${baseUrl}/api/summary`, { headers: { cookie: adminCookie } })).status, 200);
   const member = await fetch(`${baseUrl}/api/users`, { method: 'POST', headers: { 'content-type': 'application/json', cookie: adminCookie }, body: JSON.stringify({ username: 'member', displayName: 'Member', password: 'member pass' }) });
   assert.equal(member.status, 201);
-  const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'member', password: 'member pass' }) });
+  const memberUser = await member.json();
+  const updated = await fetch(`${baseUrl}/api/users/${memberUser.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: adminCookie }, body: JSON.stringify({ displayName: 'Updated member', role: 'member', password: 'updated pass' }) });
+  assert.equal(updated.status, 200);
+  assert.equal((await updated.json()).displayName, 'Updated member');
+  const login = await fetch(`${baseUrl}/api/auth/login`, { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ username: 'member', password: 'updated pass' }) });
   assert.equal(login.status, 200);
   const memberCookie = login.headers.get('set-cookie').split(';')[0];
   assert.equal((await (await fetch(`${baseUrl}/api/auth/status`, { headers: { cookie: memberCookie } })).json()).user.username, 'member');
+  const forbidden = await fetch(`${baseUrl}/api/users/${memberUser.id}`, { method: 'PATCH', headers: { 'content-type': 'application/json', cookie: memberCookie }, body: JSON.stringify({ displayName: 'Nope' }) });
+  assert.equal(forbidden.status, 403);
 });

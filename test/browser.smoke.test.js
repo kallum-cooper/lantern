@@ -44,3 +44,14 @@ test('keeps login controls usable when setup-only fields are hidden', async () =
   assert.match(appJs, /submit\.disabled = true/);
   assert.match(appJs, /Could not reach Lantern/);
 });
+
+test('uses the authenticated user for the dashboard greeting and exposes settings', async () => {
+  const [html, appJs] = await Promise.all([
+    fetch(`${baseUrl}/`).then((response) => response.text()),
+    fetch(`${baseUrl}/app.js`).then((response) => response.text()),
+  ]);
+  assert.match(html, /data-view="settings"/);
+  assert.match(html, /id="view-settings"/);
+  assert.match(appJs, /authUser\?\.displayName/);
+  assert.match(appJs, /Settings/);
+});

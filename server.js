@@ -176,6 +176,23 @@ async function api(request, response, url) {
     if (String(input.password || '').length < 8) return json(response, 400, { error: 'Password must be at least 8 characters' });
     const created = { id: createId('user'), username, displayName: displayName || username, role: input.role === 'admin' ? 'admin' : 'member', passwordHash: await hashPassword(input.password), createdAt: new Date().toISOString() }; state.users.push(created); await saveState(dataPath, state); return json(response, 201, publicUser(created));
   }
+  if (request.method === 'PATCH' && url.pathname.startsWith('/api/users/')) {
+    if (user.role !== 'admin') return json(response, 403, { error: 'Administrator access required' });
+    const id = url.pathname.split('/')[3];
+    const target = state.users.find((item) => item.id === id);
+    if (!target) return json(response, 404, { error: 'User not found' });
+    const input = await body(request);
+    const displayName = String(input.displayName ?? target.displayName).trim();
+    const role = input.role === undefined ? target.role : (input.role === 'admin' ? 'admin' : input.role === 'member' ? 'member' : 'invalid');
+    if (!displayName) return json(response, 400, { error: 'Display name cannot be empty' });
+    if (role === 'invalid') return json(response, 400, { error: 'Role must be admin or member' });
+    if (target.role === 'admin' && role === 'member' && state.users.filter((item) => item.role === 'admin').length === 1) return json(response, 400, { error: 'At least one administrator account must remain' });
+    if (input.password !== undefined && String(input.password).length < 8) return json(response, 400, { error: 'Password must be at least 8 characters' });
+    target.displayName = displayName; target.role = role;
+    if (input.password !== undefined) target.passwordHash = await hashPassword(input.password);
+    await saveState(dataPath, state);
+    return json(response, 200, publicUser(target));
+  }
   if (request.method === 'DELETE' && url.pathname.startsWith('/api/users/')) {
     if (user.role !== 'admin') return json(response, 403, { error: 'Administrator access required' });
     const id = url.pathname.split('/')[3];

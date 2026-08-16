@@ -1,0 +1,1 @@
+.settings-users{display:grid;gap:10px}.settings-user-row{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:14px 0;border-top:1px solid var(--line)}.settings-user-row:first-child{border-top:0}.settings-user-row strong,.settings-user-row small{display:block}.settings-user-row small{margin-top:4px;color:var(--muted);font-size:12px}

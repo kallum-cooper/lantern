@@ -14,6 +14,7 @@
     <link rel="stylesheet" href="/services.css" />
     <link rel="stylesheet" href="/cloud.css" />
     <link rel="stylesheet" href="/topology.css" />
+    <link rel="stylesheet" href="/settings.css" />
   </head>
   <body>
     <main id="auth-screen" class="auth-screen" hidden><form id="auth-form" class="auth-card" novalidate><div class="brand auth-brand"><span class="brand-mark">✦</span><span>lantern</span></div><p class="eyebrow accent" id="auth-eyebrow">LOCAL ACCESS</p><h1 id="auth-title">Sign in to Lantern</h1><p class="muted" id="auth-copy">Your homelab inventory is protected on this host.</p><div id="auth-fields"><label class="form-label" id="auth-display-name" hidden>Display name<input name="displayName" autocomplete="name" /></label><label class="form-label">Username<input name="username" autocomplete="username" required /></label><label class="form-label">Password<input name="password" type="password" autocomplete="current-password" minlength="8" required /></label></div><p class="auth-error" id="auth-error" hidden></p><button class="button primary" type="submit" id="auth-submit">Sign in</button></form></main>
@@ -30,6 +31,7 @@
           <button class="nav-item" data-view="topology"><span>⌘</span> Topology</button>
           <button class="nav-item" data-view="devices"><span>◫</span> Devices</button>
           <button class="nav-item" data-view="discovery"><span>◎</span> Discovery <b id="nav-discovery-count">0</b></button>
+          <button class="nav-item" data-view="settings" id="nav-settings" hidden><span>⚙</span> Settings</button>
         </nav>
         <div class="sidebar-bottom">
           <div class="health"><span class="status-dot"></span><div><strong>Local mode</strong><small>Data stays on this host</small></div></div>
@@ -39,7 +41,7 @@
 
       <main class="main-content">
         <header class="topbar">
-          <div><p class="breadcrumb">HOME LAB <span>/</span> <strong id="page-label">OVERVIEW</strong></p><h1 id="page-title">Good evening, Kallum <span>✦</span></h1></div>
+          <div><p class="breadcrumb">HOME LAB <span>/</span> <strong id="page-label">OVERVIEW</strong></p><h1 id="page-title">Good evening, <span id="greeting-name">there</span> <span>✦</span></h1></div>
           <div class="top-actions"><label class="search-box"><span>⌕</span><input id="global-search" type="search" placeholder="Search inventory" aria-label="Search inventory" /></label><button class="icon-button" id="theme-toggle" type="button" aria-label="Toggle dark mode" title="Toggle dark mode">☾</button><button class="button secondary" id="export-backup">Export</button><button class="button secondary" id="import-backup">Import</button><input id="backup-file" type="file" accept="application/json" hidden /><button class="button secondary" id="setup-site">+ Set up</button><button class="button primary" id="add-device">+ Add device</button></div>
         </header>
 
@@ -65,6 +67,8 @@
         <section id="view-topology" class="view"><div class="section-heading"><div><p class="eyebrow accent">VISUAL NETWORK MAP</p><h2>Topology</h2><p class="muted">Arrange devices, groups, and connections into a map of how your lab fits together.</p></div><div class="scan-controls"><button class="button secondary" id="topology-add-group">+ Add group</button><button class="button primary" id="topology-add-link">+ Add connection</button></div></div><div class="topology-toolbar"><button class="button secondary" id="topology-zoom-out">−</button><span id="topology-zoom-label">100%</span><button class="button secondary" id="topology-zoom-in">+</button><button class="button secondary" id="topology-reset">Reset view</button></div><div class="topology-shell"><aside id="topology-tray" class="topology-tray"></aside><div id="topology-viewport" class="topology-viewport"><div id="topology-canvas" class="topology-canvas"><svg id="topology-links" class="topology-links"></svg><div id="topology-groups"></div><div id="topology-nodes"></div></div></div></div></section>
 
         <section id="view-discovery" class="view"><div class="section-heading"><div><p class="eyebrow accent">SAFE, OPT-IN SCANNING</p><h2>Discovery review</h2><p class="muted">New observations stay here until you decide they belong in your inventory.</p></div><div class="scan-controls"><select id="scan-network" aria-label="Network to scan"></select><button class="button secondary" id="scan-discovery">◎ Run scan</button></div></div><div id="discovery-list" class="discovery-list"></div></section>
+
+        <section id="view-settings" class="view" hidden><div class="section-heading"><div><p class="eyebrow accent">ADMINISTRATION</p><h2>Settings</h2><p class="muted">Manage who can access this Lantern inventory.</p></div></div><section class="panel settings-panel"><div class="panel-heading"><div><p class="eyebrow">ACCESS CONTROL</p><h3>Users</h3></div><button class="button primary" id="settings-add-user" type="button">+ Add user</button></div><div id="settings-users" class="settings-users"></div></section></section>
       </main>
     </div>
     <div id="resource-modal" class="modal-backdrop" hidden><form id="resource-form" class="modal-card"><div class="modal-heading"><div><p class="eyebrow accent">LOCAL INVENTORY</p><h2 id="modal-title">Add resource</h2></div><button type="button" class="modal-close" id="close-modal" aria-label="Close">×</button></div><label class="form-label">Resource type<select id="resource-type"><option value="site">Site</option><option value="rack">Rack</option><option value="network">Network</option><option value="device">Device</option><option value="service">Service</option></select></label><div id="resource-fields"></div><div class="modal-actions"><button type="button" class="button secondary" id="cancel-modal">Cancel</button><button type="submit" class="button primary">Create resource</button></div></form></div>
