@@ -1,6 +1,10 @@
-# Lantern — full product context
+# Lantern V1 — product context and roadmap
 
 Lantern is a local-first, visual infrastructure inventory tool for homelabs. It is inspired by NetBox, but intentionally focuses on the small set of workflows a homelab owner needs: IPAM, safe network discovery, rack organisation, and a clear visual dashboard.
+
+## Release status
+
+Lantern V1 was released as `v1.0.0` on 16 August 2026. The core application is MIT licensed and self-hostable. Lantern Cloud is a separate hosted convenience offering built around the same product boundary; hosted services may be operated commercially without restricting the MIT-licensed core.
 
 ## Product promise
 
@@ -43,6 +47,8 @@ The open-source core is a complete and useful product, not a crippled trial. It 
 - Import/export
 - Local backups
 - Basic audit/change history
+- Cloud inventory imports, including AWS Resource Explorer CSV data
+- Local multi-user authentication with administrator and member roles
 
 Paid features should charge for convenience, collaboration, automation, and hosted infrastructure—not basic ownership of inventory data.
 
@@ -82,7 +88,7 @@ Confirmed devices can be assigned to a site, room, rack, and rack units, or left
 
 ### IPAM
 
-- IPv4 and planned IPv6 support
+- IPv4 support in V1; IPv6 remains planned
 - CIDR networks/subnets
 - VLAN number and name
 - IP address records
@@ -119,15 +125,15 @@ Confirmed devices can be assigned to a site, room, rack, and rack units, or left
 
 ## Technical architecture
 
-The starting deployment is a Docker-first modular monolith:
+The V1 deployment is a Docker-first modular monolith:
 
 - One web/API application container
-- PostgreSQL as the intended production database
-- A background worker boundary for scans, imports, exports, and scheduled jobs
+- PostgreSQL through Docker Compose for persistent deployments
+- JSON persistence fallback for simple local development
 - Clear internal modules for inventory, IPAM, discovery, visualisation, authentication, and audit history
-- Versioned internal API boundary so scanner and cloud services can later be separated without redesigning the domain
+- A future worker boundary for scans, imports, exports, and scheduled jobs
 
-The current prototype uses a dependency-light Node.js server and JSON persistence to make the first UI runnable immediately. Docker Compose is the supported starting deployment. PostgreSQL migration and a separate worker are planned before production-scale use.
+Docker Compose is the supported deployment. The application remains intentionally simple until background jobs and larger-scale integrations justify a separate worker or service boundary.
 
 ## Safety and security defaults
 
@@ -141,7 +147,7 @@ The current prototype uses a dependency-light Node.js server and JSON persistenc
 
 ## Roadmap
 
-### Phase 1 — MVP
+### Phase 1 — V1 shipped
 
 - Docker deployment
 - Dashboard
@@ -149,7 +155,8 @@ The current prototype uses a dependency-light Node.js server and JSON persistenc
 - Sites, rooms, racks, devices, interfaces, VLANs, and IPs
 - 2D rack elevation and simple map
 - Lightweight discovery and review queue
-- Import/export, local persistence, and basic change history
+- Import/export, local persistence, PostgreSQL persistence, and basic change history
+- Service inventory, topology visualisation, cloud imports, local authentication, and browser smoke coverage
 
 ### Phase 2 — homelab integrations
 
@@ -162,6 +169,8 @@ The current prototype uses a dependency-light Node.js server and JSON persistenc
 - Docker and Kubernetes integrations
 - Hardware, operating-system, disk, and service details
 - Better topology visualisation
+- Background worker for long-running scans and scheduled jobs
+- IPv6 support
 
 ### Phase 3 — paid convenience and collaboration
 
@@ -210,13 +219,16 @@ Test the following before calling the MVP complete:
 
 ## Current implementation status
 
-The initial slice provides:
+V1 is released and includes:
 
-- A standalone Node.js app
-- Dockerfile and Docker Compose deployment
-- Local JSON persistence for the prototype
-- Dashboard, IPAM table, rack view, and discovery review UI
-- API endpoints for summary, scanning, adding devices, and confirming discoveries
-- Built-in Node tests for core IPv4/IPAM behavior
+- Docker Compose deployment with persistent named volumes
+- Optional PostgreSQL persistence and JSON development fallback
+- Dashboard, IPAM, rack map, device directory, services, topology, sites, discovery, and cloud views
+- Realistic 2D rack-mounted faceplates and half-width device placement
+- Opt-in bounded discovery with review, merge, ignore, rescan, and service classification
+- Local multi-user authentication, administrator settings, and member roles
+- AWS Resource Explorer CSV import and provider-neutral cloud inventory
+- Dark mode by default with responsive layouts
+- 58 automated tests including API integration, authentication, persistence, and browser smoke coverage
 
-Known next implementation step: introduce PostgreSQL and a real background worker while keeping the domain/API behavior stable.
+The next major engineering boundary is a background worker for long-running scans and scheduled jobs. OIDC/SSO, IPv6, agent inventory, hosted sync, remote access, notifications, and managed updates remain post-V1 roadmap work.
