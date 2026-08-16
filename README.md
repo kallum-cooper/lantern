@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/kallum-cooper/lantern/releases/tag/v1.0.0"><img src="https://img.shields.io/github/v/release/kallum-cooper/lantern?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
+  <a href="https://github.com/kallum-cooper/lantern/releases/tag/v1.0.0"><img src="https://img.shields.io/badge/release-v1.0.0-62d19a?style=flat-square" alt="Lantern V1 release" /></a>
   <a href="https://github.com/kallum-cooper/lantern/blob/main/LICENSE"><img src="https://img.shields.io/badge/license-MIT-62d19a?style=flat-square" alt="MIT license" /></a>
   <a href="https://github.com/kallum-cooper/lantern"><img src="https://img.shields.io/github/stars/kallum-cooper/lantern?style=flat-square" alt="GitHub stars" /></a>
 </p>
